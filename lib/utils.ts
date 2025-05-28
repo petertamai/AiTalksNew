@@ -82,6 +82,7 @@ export function throttle<T extends (...args: any[]) => any>(
 }
 
 export default {
+  debugLog,
   cn,
   generateId,
   formatTimestamp,
@@ -89,4 +90,14 @@ export default {
   safeJsonParse,
   debounce,
   throttle,
+}
+
+export function debugLog(message: string, data?: any) {
+  if (process.env.NODE_ENV === 'development') {
+    if (data !== undefined) {
+      console.log(`[DEBUG] ${message}`, data)
+    } else {
+      console.log(`[DEBUG] ${message}`)
+    }
+  }
 }

@@ -1,4 +1,4 @@
-// components/ai-conversation/premium-settings-panel.tsx
+// components/ai-conversation/premium-settings-panel.tsx - Height Fix
 "use client"
 
 import * as React from "react"
@@ -226,16 +226,23 @@ export function PremiumSettingsPanel({
   // Load API keys and models on mount
   React.useEffect(() => {
     if (isOpen) {
+      console.log('🔧 Settings panel opened, loading data...')
       loadAPIKeys()
       if (!isSharedView) {
-        checkModels()
+        fetchModelsWithDelay()
       }
     }
   }, [isOpen, isSharedView])
 
   const loadAPIKeys = () => {
+    console.log('🔑 Loading API keys from cookies...')
     const openrouterKey = Cookies.get('openrouter_api_key') || ''
     const groqKey = Cookies.get('groq_api_key') || ''
+    
+    console.log('🔑 Found keys:', { 
+      openrouter: openrouterKey ? 'present' : 'missing',
+      groq: groqKey ? 'present' : 'missing'
+    })
     
     setApiKeys({ openrouter: openrouterKey, groq: groqKey })
     setKeyStatus({
@@ -249,18 +256,23 @@ export function PremiumSettingsPanel({
   }
 
   const validateKeys = async (openrouterKey?: string, groqKey?: string) => {
+    console.log('🔍 Validating API keys...')
+    
     // Validate OpenRouter key
     if (openrouterKey || apiKeys.openrouter) {
       try {
+        console.log('🔍 Validating OpenRouter key...')
         const response = await fetch('/api/openrouter/models', {
           credentials: 'include'
         })
         const isValid = response.ok
+        console.log('🔍 OpenRouter validation result:', isValid)
         setKeyStatus(prev => ({
           ...prev,
           openrouter: { ...prev.openrouter, valid: isValid }
         }))
-      } catch {
+      } catch (error) {
+        console.error('❌ OpenRouter validation failed:', error)
         setKeyStatus(prev => ({
           ...prev,
           openrouter: { ...prev.openrouter, valid: false }
@@ -272,6 +284,7 @@ export function PremiumSettingsPanel({
     if (groqKey || apiKeys.groq) {
       const keyToValidate = groqKey || apiKeys.groq
       const isValid = keyToValidate.startsWith('gsk_')
+      console.log('🔍 Groq validation result:', isValid)
       setKeyStatus(prev => ({
         ...prev,
         groq: { ...prev.groq, valid: isValid }
@@ -279,51 +292,49 @@ export function PremiumSettingsPanel({
     }
   }
 
-  const checkModels = async () => {
-    const openrouterKey = Cookies.get('openrouter_api_key')
-    if (!openrouterKey) return
-
-    try {
-      const response = await fetch('/api/openrouter/models', {
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        if (data.data && Array.isArray(data.data)) {
-          setModels(data.data.sort((a: OpenRouterModel, b: OpenRouterModel) => 
-            a.id.localeCompare(b.id)
-          ))
-        }
-      }
-    } catch (error) {
-      console.error('Error loading models:', error)
-    }
+  const fetchModelsWithDelay = async () => {
+    // Small delay to ensure API key is saved
+    setTimeout(fetchModels, 100)
   }
 
   const fetchModels = async () => {
+    console.log('📥 Fetching models...')
     setIsLoadingModels(true)
+    
     try {
       const response = await fetch('/api/openrouter/models', {
         credentials: 'include',
         headers: { 'Cache-Control': 'no-cache' }
       })
       
+      console.log('📥 Models response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
-        if (data.data && Array.isArray(data.data)) {
+        console.log('📥 Models data received:', { 
+          success: data.success, 
+          total: data.total,
+          dataLength: data.data?.length 
+        })
+        
+        if (data.success && data.data && Array.isArray(data.data)) {
           const sortedModels = data.data.sort((a: OpenRouterModel, b: OpenRouterModel) => 
             a.id.localeCompare(b.id)
           )
+          console.log('📥 Setting models:', sortedModels.length)
           setModels(sortedModels)
           setKeyStatus(prev => ({
             ...prev,
             openrouter: { ...prev.openrouter, valid: true }
           }))
+        } else {
+          console.warn('📥 Invalid models data structure:', data)
         }
+      } else {
+        console.error('📥 Models fetch failed:', response.status)
       }
     } catch (error) {
-      console.error('Error fetching models:', error)
+      console.error('📥 Error fetching models:', error)
     } finally {
       setIsLoadingModels(false)
     }
@@ -331,6 +342,7 @@ export function PremiumSettingsPanel({
 
   const saveAPIKey = async (keyType: 'openrouter' | 'groq') => {
     const keyValue = apiKeys[keyType].trim()
+    console.log(`💾 Saving ${keyType} key...`)
     
     setSavingStates(prev => ({ ...prev, [keyType]: true }))
     
@@ -345,11 +357,13 @@ export function PremiumSettingsPanel({
         }
       }
 
-      // Save to cookies
+      // Save to cookies first
       if (keyValue) {
         Cookies.set(`${keyType}_api_key`, keyValue, { expires: 30 })
+        console.log(`💾 ${keyType} key saved to cookies`)
       } else {
         Cookies.remove(`${keyType}_api_key`)
+        console.log(`💾 ${keyType} key removed from cookies`)
       }
 
       // Save via API
@@ -369,6 +383,7 @@ export function PremiumSettingsPanel({
 
       // Validate and fetch models if OpenRouter
       if (keyType === 'openrouter' && keyValue) {
+        console.log('💾 OpenRouter key saved, fetching models...')
         setTimeout(() => {
           validateKeys(keyValue)
           fetchModels()
@@ -380,7 +395,7 @@ export function PremiumSettingsPanel({
       }
 
     } catch (error) {
-      console.error(`Error saving ${keyType} key:`, error)
+      console.error(`❌ Error saving ${keyType} key:`, error)
     } finally {
       setSavingStates(prev => ({ ...prev, [keyType]: false }))
     }
@@ -388,10 +403,21 @@ export function PremiumSettingsPanel({
 
   const hasValidOpenRouterKey = keyStatus.openrouter.saved && keyStatus.openrouter.valid
 
+  console.log('🔧 Render state:', {
+    isOpen,
+    modelsCount: models.length,
+    isLoadingModels,
+    hasValidOpenRouterKey,
+    openrouterKeyStatus: keyStatus.openrouter
+  })
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-4xl overflow-hidden">
-        <SheetHeader className="pb-4">
+      <SheetContent 
+        className="w-full sm:max-w-6xl max-h-screen overflow-hidden flex flex-col"
+        style={{ height: '100vh' }}
+      >
+        <SheetHeader className="pb-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
@@ -407,128 +433,142 @@ export function PremiumSettingsPanel({
           </div>
         </SheetHeader>
 
-        <ScrollArea className="h-[calc(100vh-100px)] pr-4">
-          <Tabs defaultValue="api-keys" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
+        <div className="flex-1 overflow-hidden">
+          <Tabs defaultValue="api-keys" className="h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
               <TabsTrigger value="api-keys" className="flex items-center gap-2">
                 <Key className="h-4 w-4" />
                 API Keys
               </TabsTrigger>
               <TabsTrigger value="agents" className="flex items-center gap-2">
                 <Zap className="h-4 w-4" />
-                AI Agents
+                AI Agents ({models.length} models)
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="api-keys" className="space-y-6">
-              {!isSharedView && (
-                <>
-                  {/* OpenRouter API Key */}
-                  <APIKeyCard
-                    title="OpenRouter API"
-                    description="Required for AI model access"
-                    placeholder="sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
-                    keyFormat="Must start with 'sk-or-'"
-                    docsUrl="https://openrouter.ai/keys"
-                    icon={<Database className="h-5 w-5 text-primary" />}
-                    value={apiKeys.openrouter}
-                    onChange={(value) => setApiKeys(prev => ({ ...prev, openrouter: value }))}
-                    onSave={() => saveAPIKey('openrouter')}
-                    isLoading={savingStates.openrouter}
-                    status={keyStatus.openrouter}
-                  />
+            <div className="flex-1 overflow-hidden mt-6">
+              <TabsContent value="api-keys" className="h-full mt-0">
+                <ScrollArea className="h-full pr-4">
+                  <div className="space-y-6 pb-8">
+                    {!isSharedView && (
+                      <>
+                        {/* OpenRouter API Key */}
+                        <APIKeyCard
+                          title="OpenRouter API"
+                          description="Required for AI model access"
+                          placeholder="sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
+                          keyFormat="Must start with 'sk-or-'"
+                          docsUrl="https://openrouter.ai/keys"
+                          icon={<Database className="h-5 w-5 text-primary" />}
+                          value={apiKeys.openrouter}
+                          onChange={(value) => setApiKeys(prev => ({ ...prev, openrouter: value }))}
+                          onSave={() => saveAPIKey('openrouter')}
+                          isLoading={savingStates.openrouter}
+                          status={keyStatus.openrouter}
+                        />
 
-                  {/* Groq API Key */}
-                  <APIKeyCard
-                    title="Groq API (Optional)"
-                    description="Required for text-to-speech functionality"
-                    placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
-                    keyFormat="Must start with 'gsk_'"
-                    docsUrl="https://console.groq.com/keys"
-                    icon={<Zap className="h-5 w-5 text-purple-500" />}
-                    value={apiKeys.groq}
-                    onChange={(value) => setApiKeys(prev => ({ ...prev, groq: value }))}
-                    onSave={() => saveAPIKey('groq')}
-                    isLoading={savingStates.groq}
-                    status={keyStatus.groq}
-                  />
+                        {/* Groq API Key */}
+                        <APIKeyCard
+                          title="Groq API (Optional)"
+                          description="Required for text-to-speech functionality"
+                          placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
+                          keyFormat="Must start with 'gsk_'"
+                          docsUrl="https://console.groq.com/keys"
+                          icon={<Zap className="h-5 w-5 text-purple-500" />}
+                          value={apiKeys.groq}
+                          onChange={(value) => setApiKeys(prev => ({ ...prev, groq: value }))}
+                          onSave={() => saveAPIKey('groq')}
+                          isLoading={savingStates.groq}
+                          status={keyStatus.groq}
+                        />
 
-                  {/* Models Status */}
-                  {hasValidOpenRouterKey && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-base">Models Available</CardTitle>
-                              <p className="text-sm text-muted-foreground">
-                                {models.length} models loaded successfully
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={fetchModels}
-                            disabled={isLoadingModels}
-                          >
-                            <RefreshCw className={cn(
-                              "h-4 w-4 mr-1",
-                              isLoadingModels && "animate-spin"
-                            )} />
-                            Refresh
-                          </Button>
-                        </div>
-                      </CardHeader>
-                    </Card>
-                  )}
-                </>
-              )}
+                        {/* Models Status */}
+                        {hasValidOpenRouterKey && (
+                          <Card>
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                  </div>
+                                  <div>
+                                    <CardTitle className="text-base">Models Available</CardTitle>
+                                    <p className="text-sm text-muted-foreground">
+                                      {models.length} models loaded successfully
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={fetchModels}
+                                  disabled={isLoadingModels}
+                                >
+                                  <RefreshCw className={cn(
+                                    "h-4 w-4 mr-1",
+                                    isLoadingModels && "animate-spin"
+                                  )} />
+                                  Refresh
+                                </Button>
+                              </div>
+                            </CardHeader>
+                          </Card>
+                        )}
+                      </>
+                    )}
 
-              {isSharedView && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    This is a shared conversation view. API key configuration is not available.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </TabsContent>
+                    {isSharedView && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          This is a shared conversation view. API key configuration is not available.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
 
-            <TabsContent value="agents" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <AIAgentCard
-                  agent={ai1Config}
-                  models={models}
-                  isLoadingModels={isLoadingModels}
-                  onChange={onAI1ConfigChange}
-                  disabled={isSharedView}
-                />
-                
-                <AIAgentCard
-                  agent={ai2Config}
-                  models={models}
-                  isLoadingModels={isLoadingModels}
-                  onChange={onAI2ConfigChange}
-                  disabled={isSharedView}
-                />
-              </div>
+              <TabsContent value="agents" className="h-full mt-0">
+                <ScrollArea className="h-full pr-4">
+                  <div className="space-y-6 pb-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="min-h-[600px]"> {/* Ensure enough height for dropdowns */}
+                        <AIAgentCard
+                          agent={ai1Config}
+                          models={models}
+                          isLoadingModels={isLoadingModels}
+                          onChange={onAI1ConfigChange}
+                          disabled={isSharedView}
+                        />
+                      </div>
+                      
+                      <div className="min-h-[600px]"> {/* Ensure enough height for dropdowns */}
+                        <AIAgentCard
+                          agent={ai2Config}
+                          models={models}
+                          isLoadingModels={isLoadingModels}
+                          onChange={onAI2ConfigChange}
+                          disabled={isSharedView}
+                        />
+                      </div>
+                    </div>
 
-              {!hasValidOpenRouterKey && !isSharedView && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Configure your OpenRouter API key in the API Keys tab to select models for your AI agents.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </TabsContent>
+                    {!hasValidOpenRouterKey && !isSharedView && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Configure your OpenRouter API key in the API Keys tab to select models for your AI agents.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </div>
           </Tabs>
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   )

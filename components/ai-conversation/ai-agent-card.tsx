@@ -1,4 +1,4 @@
-// components/ai-conversation/ai-agent-card.tsx
+// components/ai-conversation/ai-agent-card.tsx - MUCH TALLER VERSION
 "use client"
 
 import * as React from "react"
@@ -53,6 +53,17 @@ export function AIAgentCard({
 }: AIAgentCardProps) {
   const [isExpanded, setIsExpanded] = React.useState(false)
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log(`🎭 AIAgentCard ${agent.id} received:`, {
+      modelsCount: models?.length || 0,
+      isLoadingModels,
+      disabled,
+      agentName: agent.name,
+      currentModel: agent.model
+    })
+  }, [models, isLoadingModels, disabled, agent])
+
   const agentColors = {
     ai1: {
       primary: "from-blue-500/20 to-cyan-500/20",
@@ -69,9 +80,10 @@ export function AIAgentCard({
   }
 
   const colors = agentColors[agent.id]
-  const selectedModel = models.find(m => m.id === agent.model)
+  const selectedModel = models?.find(m => m.id === agent.model)
 
   const handleModelChange = (modelId: string) => {
+    console.log(`🎭 Model changed for ${agent.id}:`, modelId)
     onChange({ model: modelId })
   }
 
@@ -97,48 +109,50 @@ export function AIAgentCard({
 
   return (
     <Card className={cn(
-      "group relative overflow-hidden transition-all duration-300",
+      "group relative overflow-visible transition-all duration-300",
       "hover:shadow-lg hover:shadow-primary/5",
       `bg-gradient-to-br ${colors.primary}`,
       colors.border,
+      // MUCH TALLER CARD - This is the key fix!
+      "min-h-[800px] h-auto",
       className
     )}>
       {/* Animated background */}
       <div className="absolute inset-0 bg-gradient-to-br from-background/50 to-background/30 backdrop-blur-sm" />
       
-      <CardHeader className="relative pb-4">
+      <CardHeader className="relative pb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={cn(
-              "w-10 h-10 rounded-lg flex items-center justify-center",
+              "w-12 h-12 rounded-lg flex items-center justify-center",
               colors.accent,
               colors.border
             )}>
-              <Bot className={cn("h-5 w-5", colors.icon)} />
+              <Bot className={cn("h-6 w-6", colors.icon)} />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Input
                   value={agent.name}
                   onChange={(e) => onChange({ name: e.target.value })}
-                  className="h-7 text-sm font-semibold bg-transparent border-none p-0 focus-visible:ring-0"
+                  className="h-8 text-base font-semibold bg-transparent border-none p-0 focus-visible:ring-0 min-w-[120px]"
                   disabled={disabled}
                 />
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-sm">
                   {agent.id.toUpperCase()}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 {selectedModel && (
                   <>
-                    <Brain className="h-3 w-3" />
-                    <span className="truncate max-w-[200px]">{selectedModel.id}</span>
+                    <Brain className="h-4 w-4" />
+                    <span className="truncate max-w-[250px]">{selectedModel.id}</span>
                   </>
                 )}
                 {agent.tts.enabled && (
                   <>
-                    <Separator orientation="vertical" className="h-3" />
-                    <Volume2 className="h-3 w-3" />
+                    <Separator orientation="vertical" className="h-4" />
+                    <Volume2 className="h-4 w-4" />
                     <span>{agent.tts.voice.replace('-PlayAI', '')}</span>
                   </>
                 )}
@@ -150,14 +164,14 @@ export function AIAgentCard({
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className={cn(
-                "w-8 h-8 rounded-md flex items-center justify-center",
+                "w-10 h-10 rounded-md flex items-center justify-center",
                 "hover:bg-accent transition-colors",
                 colors.accent
               )}
               disabled={disabled}
             >
               <Settings className={cn(
-                "h-4 w-4 transition-transform duration-200",
+                "h-5 w-5 transition-transform duration-200",
                 isExpanded && "rotate-90"
               )} />
             </button>
@@ -165,34 +179,44 @@ export function AIAgentCard({
         </div>
       </CardHeader>
 
-      <CardContent className="relative space-y-4">
-        {/* Model Selection */}
-        <ModelSelector
-          models={models}
-          value={agent.model}
-          onValueChange={handleModelChange}
-          placeholder={`Select ${agent.name} model...`}
-          disabled={disabled || isLoadingModels}
-          isLoading={isLoadingModels}
-          agentName={agent.name}
-        />
+      <CardContent className="relative space-y-8 pb-8">
+        {/* Model Selection - MUCH MORE SPACE */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            <Label className="text-base font-medium">AI Model</Label>
+          </div>
+          
+          {/* THIS IS THE KEY - LOTS OF SPACE FOR DROPDOWN */}
+          <div className="min-h-[300px] relative">
+            <ModelSelector
+              models={models || []}
+              value={agent.model}
+              onValueChange={handleModelChange}
+              placeholder={`Select ${agent.name} model...`}
+              disabled={disabled || isLoadingModels}
+              isLoading={isLoadingModels}
+              agentName={agent.name}
+            />
+          </div>
+        </div>
 
         {/* Expanded Configuration */}
         {isExpanded && (
-          <div className="space-y-6 animate-in slide-in-from-top-2 duration-200">
+          <div className="space-y-8 animate-in slide-in-from-top-2 duration-200">
             <Separator />
             
             {/* Parameters Section */}
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-muted-foreground" />
-                <h4 className="text-sm font-medium">Parameters</h4>
+                <Sliders className="h-5 w-5 text-muted-foreground" />
+                <h4 className="text-base font-medium">Parameters</h4>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs">Temperature</Label>
-                  <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-4">
+                  <Label className="text-sm">Temperature: {agent.temperature}</Label>
+                  <div className="space-y-3">
                     <Slider
                       value={[agent.temperature]}
                       onValueChange={handleTemperatureChange}
@@ -203,16 +227,15 @@ export function AIAgentCard({
                       disabled={disabled}
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>0</span>
-                      <span className="font-medium">{agent.temperature}</span>
-                      <span>2</span>
+                      <span>Conservative (0)</span>
+                      <span>Creative (2)</span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label className="text-xs">Max Tokens</Label>
-                  <div className="space-y-2">
+                <div className="space-y-4">
+                  <Label className="text-sm">Max Tokens: {agent.maxTokens}</Label>
+                  <div className="space-y-3">
                     <Slider
                       value={[agent.maxTokens]}
                       onValueChange={handleMaxTokensChange}
@@ -223,9 +246,8 @@ export function AIAgentCard({
                       disabled={disabled}
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>50</span>
-                      <span className="font-medium">{agent.maxTokens}</span>
-                      <span>8K</span>
+                      <span>Short (50)</span>
+                      <span>Long (8K)</span>
                     </div>
                   </div>
                 </div>
@@ -233,13 +255,13 @@ export function AIAgentCard({
             </div>
 
             {/* TTS Section */}
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Mic className="h-4 w-4 text-muted-foreground" />
-                  <h4 className="text-sm font-medium">Text-to-Speech</h4>
+                  <Mic className="h-5 w-5 text-muted-foreground" />
+                  <h4 className="text-base font-medium">Text-to-Speech</h4>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-3">
                   <Checkbox
                     id={`${agent.id}-tts`}
                     checked={agent.tts.enabled}
@@ -248,7 +270,7 @@ export function AIAgentCard({
                   />
                   <Label 
                     htmlFor={`${agent.id}-tts`} 
-                    className="text-xs cursor-pointer"
+                    className="text-sm cursor-pointer"
                   >
                     {agent.tts.enabled ? 'Enabled' : 'Disabled'}
                   </Label>
@@ -261,13 +283,13 @@ export function AIAgentCard({
                   onValueChange={handleVoiceChange}
                   disabled={disabled}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {VOICE_OPTIONS.map((voice) => (
                       <SelectItem key={voice.value} value={voice.value}>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col py-1">
                           <span className="font-medium">{voice.label}</span>
                           <span className="text-xs text-muted-foreground">
                             {voice.accent}
@@ -281,16 +303,16 @@ export function AIAgentCard({
             </div>
 
             {/* System Prompt */}
-            <div className="space-y-2">
+            <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">System Prompt</Label>
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+                <Label className="text-base font-medium">System Prompt</Label>
               </div>
               <Textarea
                 value={agent.prompt}
                 onChange={(e) => onChange({ prompt: e.target.value })}
                 placeholder={`Instructions for ${agent.name} behavior...`}
-                className="min-h-[80px] resize-none"
+                className="min-h-[120px] resize-none text-sm"
                 disabled={disabled}
               />
               <div className="flex justify-between text-xs text-muted-foreground">
