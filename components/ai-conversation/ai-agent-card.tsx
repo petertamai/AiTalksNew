@@ -1,4 +1,4 @@
-// components/ai-conversation/ai-agent-card.tsx - MUCH TALLER VERSION
+// components/ai-conversation/ai-agent-card.tsx - FIXED HEIGHT VERSION
 "use client"
 
 import * as React from "react"
@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { ModelSelector } from "./advanced-model-selector"
 import { AIAgent, OpenRouterModel, VoiceOption } from "@/types"
 
@@ -113,14 +114,14 @@ export function AIAgentCard({
       "hover:shadow-lg hover:shadow-primary/5",
       `bg-gradient-to-br ${colors.primary}`,
       colors.border,
-      // MUCH TALLER CARD - This is the key fix!
-      "min-h-[800px] h-auto",
+      // FIXED HEIGHT - Using max-h-[70vh] and proper overflow handling
+      "h-[80vh] flex flex-col",
       className
     )}>
       {/* Animated background */}
       <div className="absolute inset-0 bg-gradient-to-br from-background/50 to-background/30 backdrop-blur-sm" />
       
-      <CardHeader className="relative pb-6">
+      <CardHeader className="relative pb-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={cn(
@@ -146,7 +147,7 @@ export function AIAgentCard({
                 {selectedModel && (
                   <>
                     <Brain className="h-4 w-4" />
-                    <span className="truncate max-w-[250px]">{selectedModel.id}</span>
+                    <span className="truncate max-w-[200px]">{selectedModel.id}</span>
                   </>
                 )}
                 {agent.tts.enabled && (
@@ -179,149 +180,154 @@ export function AIAgentCard({
         </div>
       </CardHeader>
 
-      <CardContent className="relative space-y-8 pb-8">
-        {/* Model Selection - MUCH MORE SPACE */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" />
-            <Label className="text-base font-medium">AI Model</Label>
-          </div>
-          
-          {/* THIS IS THE KEY - LOTS OF SPACE FOR DROPDOWN */}
-          <div className="min-h-[300px] relative">
-            <ModelSelector
-              models={models || []}
-              value={agent.model}
-              onValueChange={handleModelChange}
-              placeholder={`Select ${agent.name} model...`}
-              disabled={disabled || isLoadingModels}
-              isLoading={isLoadingModels}
-              agentName={agent.name}
-            />
-          </div>
-        </div>
-
-        {/* Expanded Configuration */}
-        {isExpanded && (
-          <div className="space-y-8 animate-in slide-in-from-top-2 duration-200">
-            <Separator />
-            
-            {/* Parameters Section */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2">
-                <Sliders className="h-5 w-5 text-muted-foreground" />
-                <h4 className="text-base font-medium">Parameters</h4>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-4">
-                  <Label className="text-sm">Temperature: {agent.temperature}</Label>
-                  <div className="space-y-3">
-                    <Slider
-                      value={[agent.temperature]}
-                      onValueChange={handleTemperatureChange}
-                      max={2}
-                      min={0}
-                      step={0.1}
-                      className="w-full"
-                      disabled={disabled}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Conservative (0)</span>
-                      <span>Creative (2)</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <Label className="text-sm">Max Tokens: {agent.maxTokens}</Label>
-                  <div className="space-y-3">
-                    <Slider
-                      value={[agent.maxTokens]}
-                      onValueChange={handleMaxTokensChange}
-                      max={8000}
-                      min={50}
-                      step={50}
-                      className="w-full"
-                      disabled={disabled}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Short (50)</span>
-                      <span>Long (8K)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* TTS Section */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Mic className="h-5 w-5 text-muted-foreground" />
-                  <h4 className="text-base font-medium">Text-to-Speech</h4>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id={`${agent.id}-tts`}
-                    checked={agent.tts.enabled}
-                    onCheckedChange={handleTTSToggle}
-                    disabled={disabled}
-                  />
-                  <Label 
-                    htmlFor={`${agent.id}-tts`} 
-                    className="text-sm cursor-pointer"
-                  >
-                    {agent.tts.enabled ? 'Enabled' : 'Disabled'}
-                  </Label>
-                </div>
-              </div>
-              
-              {agent.tts.enabled && (
-                <Select
-                  value={agent.tts.voice}
-                  onValueChange={handleVoiceChange}
-                  disabled={disabled}
-                >
-                  <SelectTrigger className="h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VOICE_OPTIONS.map((voice) => (
-                      <SelectItem key={voice.value} value={voice.value}>
-                        <div className="flex flex-col py-1">
-                          <span className="font-medium">{voice.label}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {voice.accent}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {/* System Prompt */}
+      {/* Scrollable Content Area */}
+      <CardContent className="relative flex-1 overflow-hidden pb-4">
+        <ScrollArea className="h-full pr-4">
+          <div className="space-y-6">
+            {/* Model Selection - FIXED TO WORK WITH SCROLL */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-muted-foreground" />
-                <Label className="text-base font-medium">System Prompt</Label>
+                <Brain className="h-5 w-5 text-primary" />
+                <Label className="text-base font-medium">AI Model</Label>
               </div>
-              <Textarea
-                value={agent.prompt}
-                onChange={(e) => onChange({ prompt: e.target.value })}
-                placeholder={`Instructions for ${agent.name} behavior...`}
-                className="min-h-[120px] resize-none text-sm"
-                disabled={disabled}
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Define your AI's personality and behavior</span>
-                <span>{agent.prompt.length} characters</span>
+              
+              {/* Model Selector with proper overflow handling */}
+              <div className="relative z-50">
+                <ModelSelector
+                  models={models || []}
+                  value={agent.model}
+                  onValueChange={handleModelChange}
+                  placeholder={`Select ${agent.name} model...`}
+                  disabled={disabled || isLoadingModels}
+                  isLoading={isLoadingModels}
+                  agentName={agent.name}
+                />
               </div>
             </div>
+
+            {/* Expanded Configuration */}
+            {isExpanded && (
+              <div className="space-y-6 animate-in slide-in-from-top-2 duration-200">
+                <Separator />
+                
+                {/* Parameters Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="h-5 w-5 text-muted-foreground" />
+                    <h4 className="text-base font-medium">Parameters</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-3">
+                      <Label className="text-sm">Temperature: {agent.temperature}</Label>
+                      <div className="space-y-2">
+                        <Slider
+                          value={[agent.temperature]}
+                          onValueChange={handleTemperatureChange}
+                          max={2}
+                          min={0}
+                          step={0.1}
+                          className="w-full"
+                          disabled={disabled}
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Conservative (0)</span>
+                          <span>Creative (2)</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <Label className="text-sm">Max Tokens: {agent.maxTokens}</Label>
+                      <div className="space-y-2">
+                        <Slider
+                          value={[agent.maxTokens]}
+                          onValueChange={handleMaxTokensChange}
+                          max={8000}
+                          min={50}
+                          step={50}
+                          className="w-full"
+                          disabled={disabled}
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Short (50)</span>
+                          <span>Long (8K)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TTS Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Mic className="h-5 w-5 text-muted-foreground" />
+                      <h4 className="text-base font-medium">Text-to-Speech</h4>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id={`${agent.id}-tts`}
+                        checked={agent.tts.enabled}
+                        onCheckedChange={handleTTSToggle}
+                        disabled={disabled}
+                      />
+                      <Label 
+                        htmlFor={`${agent.id}-tts`} 
+                        className="text-sm cursor-pointer"
+                      >
+                        {agent.tts.enabled ? 'Enabled' : 'Disabled'}
+                      </Label>
+                    </div>
+                  </div>
+                  
+                  {agent.tts.enabled && (
+                    <Select
+                      value={agent.tts.voice}
+                      onValueChange={handleVoiceChange}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger className="h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {VOICE_OPTIONS.map((voice) => (
+                          <SelectItem key={voice.value} value={voice.value}>
+                            <div className="flex flex-col py-1">
+                              <span className="font-medium">{voice.label}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {voice.accent}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {/* System Prompt */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-muted-foreground" />
+                    <Label className="text-base font-medium">System Prompt</Label>
+                  </div>
+                  <Textarea
+                    value={agent.prompt}
+                    onChange={(e) => onChange({ prompt: e.target.value })}
+                    placeholder={`Instructions for ${agent.name} behavior...`}
+                    className="min-h-[100px] resize-none text-sm"
+                    disabled={disabled}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Define your AI's personality and behavior</span>
+                    <span>{agent.prompt.length} characters</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </ScrollArea>
       </CardContent>
     </Card>
   )
