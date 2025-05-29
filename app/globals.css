@@ -1,5 +1,8 @@
-/* app/globals.css */
+/* app/globals.css - Your Premium Styling + Enhanced Markdown Support */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Import KaTeX CSS for math rendering */
+@import 'katex/dist/katex.min.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -296,14 +299,18 @@
 
   /* Model selector enhancements */
   .model-selector {
-    @apply relative group;
+    @apply relative;
   }
 
   .model-selector::before {
     @apply absolute inset-0 rounded-lg bg-gradient-to-r from-primary/5 via-transparent to-primary/5;
-    @apply opacity-0 group-hover:opacity-100 transition-opacity duration-300;
+    @apply opacity-0 transition-opacity duration-300;
     content: '';
     z-index: -1;
+  }
+  
+  .model-selector:hover::before {
+    @apply opacity-100;
   }
 
   /* Enhanced shadows for depth */
@@ -335,12 +342,209 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* ========== ENHANCED MARKDOWN SUPPORT ========== */
+  
+  /* Premium markdown styling that integrates with your design */
+  .prose {
+    @apply text-foreground;
+    max-width: none;
+  }
+  
+  /* Code styling that matches your premium theme */
+  .prose code {
+    @apply text-sm bg-muted/60 text-foreground px-1.5 py-0.5 rounded-md font-mono;
+    @apply border border-border/30;
+  }
+  
+  .prose pre {
+    @apply overflow-x-auto rounded-xl border border-border/30;
+    @apply bg-muted/30 backdrop-blur-sm;
+  }
+  
+  .prose pre code {
+    @apply bg-transparent border-0 p-0 text-sm;
+  }
+  
+  /* Table styling with your premium aesthetics */
+  .prose table {
+    @apply w-full border-collapse rounded-lg overflow-hidden;
+    @apply border border-border/30 bg-card/50 backdrop-blur-sm;
+  }
+  
+  .prose th {
+    @apply border border-border/30 bg-muted/60 px-4 py-3 text-left font-semibold;
+    @apply text-foreground;
+  }
+  
+  .prose td {
+    @apply border border-border/30 px-4 py-3;
+    @apply text-foreground;
+  }
+  
+  /* Enhanced blockquote with your color scheme */
+  .prose blockquote {
+    @apply border-l-4 border-primary/60 pl-6 italic text-muted-foreground;
+    @apply bg-muted/20 py-4 pr-4 rounded-r-lg backdrop-blur-sm;
+    @apply border-r border-t border-b border-border/30;
+  }
+  
+  /* Link styling that matches your theme */
+  .prose a {
+    @apply text-primary font-medium underline underline-offset-4;
+    @apply hover:text-primary/80 transition-colors duration-200;
+    @apply hover:decoration-primary/60;
+  }
+  
+  /* List styling with proper spacing */
+  .prose ul {
+    @apply list-disc pl-6 space-y-1;
+  }
+  
+  .prose ol {
+    @apply list-decimal pl-6 space-y-1;
+  }
+  
+  .prose li {
+    @apply text-foreground;
+  }
+  
+  .prose li::marker {
+    @apply text-muted-foreground;
+  }
+  
+  /* Enhanced heading hierarchy */
+  .prose h1 {
+    @apply text-2xl font-bold mt-8 mb-4 text-foreground;
+    @apply border-b border-border/30 pb-2;
+  }
+  
+  .prose h2 {
+    @apply text-xl font-semibold mt-6 mb-3 text-foreground;
+  }
+  
+  .prose h3 {
+    @apply text-lg font-medium mt-5 mb-2 text-foreground;
+  }
+  
+  .prose h4 {
+    @apply text-base font-medium mt-4 mb-2 text-foreground;
+  }
+  
+  .prose h5,
+  .prose h6 {
+    @apply text-sm font-medium mt-3 mb-1 text-foreground;
+  }
+  
+  /* Paragraph spacing optimized for conversations */
+  .prose p {
+    @apply leading-relaxed text-foreground;
+    @apply my-3;
+  }
+  
+  /* First and last paragraph margin adjustments */
+  .prose p:first-child {
+    @apply mt-0;
+  }
+  
+  .prose p:last-child {
+    @apply mb-0;
+  }
+  
+  /* Enhanced emphasis with your color scheme */
+  .prose strong {
+    @apply font-semibold text-foreground;
+  }
+  
+  .prose em {
+    @apply italic text-foreground;
+  }
+  
+  /* Horizontal rule with premium styling */
+  .prose hr {
+    @apply my-8 border-0 h-px bg-gradient-to-r from-transparent via-border to-transparent;
+  }
+  
+  /* Math equation styling with KaTeX */
+  .prose .katex {
+    @apply text-foreground;
+  }
+  
+  .prose .katex-display {
+    @apply my-6 p-4 rounded-lg bg-muted/30 backdrop-blur-sm;
+    @apply border border-border/30;
+  }
+  
+  /* Inline math styling */
+  .prose .katex {
+    @apply inline;
+  }
+  
+  /* Enhanced syntax highlighter integration */
+  .prose pre[class*="language-"] {
+    @apply !bg-muted/30 !border !border-border/30 !rounded-xl;
+    @apply backdrop-blur-sm;
+  }
+  
+  .prose code[class*="language-"] {
+    @apply !bg-transparent !text-foreground;
+  }
+  
+  /* Copy button styling for code blocks */
+  .prose .copy-button {
+    @apply absolute top-3 right-3 opacity-0;
+    @apply transition-opacity duration-200;
+    @apply bg-background/80 hover:bg-background border border-border/50;
+    @apply rounded-md p-1.5 backdrop-blur-sm;
+  }
+  
+  /* Code block container with copy functionality */
+  .prose .code-block-container {
+    @apply relative;
+  }
+  
+  .prose .code-block-container:hover .copy-button {
+    @apply opacity-100;
+  }
+  
+  .prose .code-block-header {
+    @apply flex items-center justify-between bg-muted/60 px-4 py-2;
+    @apply rounded-t-lg border-b border-border/30 backdrop-blur-sm;
+  }
+  
+  .prose .code-block-language {
+    @apply text-sm font-medium text-muted-foreground flex items-center gap-2;
+  }
 }
 
 /* Print styles */
 @media print {
   .no-print {
     display: none !important;
+  }
+  
+  .conversation-message {
+    @apply break-inside-avoid;
+  }
+  
+  .prose {
+    @apply text-black;
+  }
+  
+  .prose a {
+    @apply text-black underline;
+  }
+  
+  .prose code {
+    @apply bg-gray-100 text-black;
+  }
+  
+  .prose pre {
+    @apply bg-gray-100 text-black border border-gray-300;
+  }
+  
+  .prose blockquote {
+    @apply bg-gray-50 border-l-gray-400;
   }
 }
 
@@ -349,6 +553,14 @@
   :root {
     --border: 0 0% 60%;
     --muted-foreground: 0 0% 40%;
+  }
+  
+  .prose {
+    @apply contrast-125;
+  }
+  
+  .prose code {
+    @apply bg-background border-2 border-foreground;
   }
 }
 
@@ -370,6 +582,10 @@
   .typing-dot {
     animation: none;
   }
+  
+  .progress-premium {
+    animation: none;
+  }
 }
 
 /* Enhanced selection styles */
@@ -381,4 +597,29 @@
 ::-moz-selection {
   background: hsl(var(--primary) / 0.2);
   color: hsl(var(--primary-foreground));
+}
+
+/* Scrollbar utilities for markdown content */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
 }

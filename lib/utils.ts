@@ -1,3 +1,4 @@
+// lib/utils.ts - Updated with better default names and enhanced name handling
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { AIAgent, ConversationDirection } from "@/types"
@@ -92,6 +93,51 @@ export function debugLog(message: string, data?: any) {
   }
 }
 
+// ========== NAME GENERATION UTILITIES ==========
+
+const CREATIVE_AI_NAMES = [
+  'Genesis', 'Synthesis', 'Nexus', 'Apex', 'Lumina', 'Vortex', 'Phoenix', 'Quantum',
+  'Seraph', 'Echo', 'Nova', 'Cipher', 'Astra', 'Zephyr', 'Cosmos', 'Prism',
+  'Ember', 'Storm', 'Sage', 'Atlas', 'Iris', 'Orion', 'Luna', 'Titan',
+  'Aria', 'Kai', 'Zen', 'Flux', 'Neo', 'Lyra', 'Raven', 'Phoenix'
+]
+
+const PERSONALITY_TRAITS = [
+  'The Wise', 'The Creative', 'The Analytical', 'The Curious', 'The Bold',
+  'The Thoughtful', 'The Innovative', 'The Eloquent', 'The Precise', 'The Intuitive',
+  'The Strategic', 'The Empathetic', 'The Logical', 'The Imaginative', 'The Sage'
+]
+
+export function generateRandomAIName(): string {
+  const name = CREATIVE_AI_NAMES[Math.floor(Math.random() * CREATIVE_AI_NAMES.length)]
+  const trait = PERSONALITY_TRAITS[Math.floor(Math.random() * PERSONALITY_TRAITS.length)]
+  
+  // Sometimes return just the name, sometimes with a trait
+  return Math.random() > 0.7 ? `${name} ${trait}` : name
+}
+
+export function validateAIName(name: string): { isValid: boolean; error?: string } {
+  if (!name || !name.trim()) {
+    return { isValid: false, error: 'Name cannot be empty' }
+  }
+  
+  if (name.trim().length < 2) {
+    return { isValid: false, error: 'Name must be at least 2 characters long' }
+  }
+  
+  if (name.trim().length > 50) {
+    return { isValid: false, error: 'Name must be less than 50 characters long' }
+  }
+  
+  // Check for valid characters (letters, numbers, spaces, hyphens, underscores)
+  const validNameRegex = /^[a-zA-Z0-9\s\-_.,!?()]+$/
+  if (!validNameRegex.test(name.trim())) {
+    return { isValid: false, error: 'Name contains invalid characters' }
+  }
+  
+  return { isValid: true }
+}
+
 // ========== LOCAL STORAGE UTILITIES ==========
 
 export interface ConversationSettings {
@@ -112,12 +158,12 @@ const STORAGE_KEYS = {
   USER_PREFERENCES: 'user_preferences'
 } as const
 
-// Default configurations
+// Enhanced default configurations with better names
 export const DEFAULT_AI1_CONFIG: AIAgent = {
   id: 'ai1',
-  name: 'Genesis',
+  name: 'Assistant Alpha', // More descriptive default name
   model: '',
-  prompt: "You are Genesis, you are yourself.",
+  prompt: "You are a helpful, creative, and insightful AI assistant. Engage in meaningful conversations with curiosity and wisdom.",
   maxTokens: 1500,
   temperature: 0.7,
   tts: {
@@ -128,9 +174,9 @@ export const DEFAULT_AI1_CONFIG: AIAgent = {
 
 export const DEFAULT_AI2_CONFIG: AIAgent = {
   id: 'ai2',
-  name: 'Synthesis',
+  name: 'Assistant Beta', // More descriptive default name
   model: '',
-  prompt: "You are Synthesis, you are yourself.",
+  prompt: "You are a thoughtful, analytical, and engaging AI assistant. Provide balanced perspectives and ask insightful questions.",
   maxTokens: 1500,
   temperature: 0.6,
   tts: {
@@ -139,7 +185,7 @@ export const DEFAULT_AI2_CONFIG: AIAgent = {
   },
 }
 
-export const DEFAULT_STARTING_MESSAGE = "Hello!"
+export const DEFAULT_STARTING_MESSAGE = "Hello! I'm excited to have a conversation with you. What would you like to explore together?"
 export const DEFAULT_CONVERSATION_DIRECTION: ConversationDirection = 'ai1-to-ai2'
 
 // Safe localStorage operations (client-side only)
@@ -252,12 +298,18 @@ export function saveConversationSettings(settings: {
   let allSaved = true
 
   if (settings.ai1Config) {
-    const success = saveToLocalStorage(STORAGE_KEYS.AI1_CONFIG, settings.ai1Config)
+    // Merge with existing config to preserve all properties
+    const existingAI1 = getFromLocalStorage(STORAGE_KEYS.AI1_CONFIG, DEFAULT_AI1_CONFIG)
+    const mergedAI1 = { ...existingAI1, ...settings.ai1Config }
+    const success = saveToLocalStorage(STORAGE_KEYS.AI1_CONFIG, mergedAI1)
     allSaved = allSaved && success
   }
 
   if (settings.ai2Config) {
-    const success = saveToLocalStorage(STORAGE_KEYS.AI2_CONFIG, settings.ai2Config)
+    // Merge with existing config to preserve all properties
+    const existingAI2 = getFromLocalStorage(STORAGE_KEYS.AI2_CONFIG, DEFAULT_AI2_CONFIG)
+    const mergedAI2 = { ...existingAI2, ...settings.ai2Config }
+    const success = saveToLocalStorage(STORAGE_KEYS.AI2_CONFIG, mergedAI2)
     allSaved = allSaved && success
   }
 
@@ -276,6 +328,15 @@ export function saveConversationSettings(settings: {
 }
 
 export function validateAIConfig(config: Partial<AIAgent>, defaultConfig: AIAgent): AIAgent {
+  // Validate name if provided
+  if (config.name) {
+    const nameValidation = validateAIName(config.name)
+    if (!nameValidation.isValid) {
+      console.warn(`Invalid AI name "${config.name}": ${nameValidation.error}. Using default.`)
+      config.name = defaultConfig.name
+    }
+  }
+
   return {
     id: config.id || defaultConfig.id,
     name: config.name || defaultConfig.name,
@@ -338,19 +399,58 @@ export function importConversationSettings(jsonString: string): boolean {
   }
 }
 
-// ========== DEBOUNCED SAVE FUNCTIONS ==========
+// ========== ENHANCED DEBOUNCED SAVE FUNCTIONS ==========
 
 export const debouncedSaveAI1Config = debounce((config: Partial<AIAgent>) => {
+  console.log('💾 Debounced save AI1 config:', config)
   saveConversationSettings({ ai1Config: config })
 }, 1000)
 
 export const debouncedSaveAI2Config = debounce((config: Partial<AIAgent>) => {
+  console.log('💾 Debounced save AI2 config:', config)
   saveConversationSettings({ ai2Config: config })
 }, 1000)
 
 export const debouncedSaveStartingMessage = debounce((message: string) => {
+  console.log('💾 Debounced save starting message:', message.substring(0, 50) + '...')
   saveConversationSettings({ startingMessage: message })
 }, 1500)
+
+// ========== AI NAME PRESETS ==========
+
+export const AI_NAME_PRESETS = {
+  creative: [
+    'Muse', 'Inspiration', 'Spark', 'Visionary', 'Artisan', 'Creator', 'Imagination'
+  ],
+  analytical: [
+    'Logic', 'Reason', 'Analytics', 'Insight', 'Precision', 'Calculator', 'Scholar'
+  ],
+  friendly: [
+    'Buddy', 'Companion', 'Friend', 'Helper', 'Guide', 'Mentor', 'Ally'
+  ],
+  professional: [
+    'Executive', 'Consultant', 'Advisor', 'Expert', 'Specialist', 'Professional', 'Authority'
+  ],
+  playful: [
+    'Spark', 'Zest', 'Joy', 'Whimsy', 'Bounce', 'Giggle', 'Fun'
+  ]
+}
+
+export function getRandomNameFromCategory(category: keyof typeof AI_NAME_PRESETS): string {
+  const names = AI_NAME_PRESETS[category]
+  return names[Math.floor(Math.random() * names.length)]
+}
+
+export function suggestNames(currentName: string, count: number = 5): string[] {
+  const suggestions = new Set<string>()
+  
+  // Add some random creative names
+  while (suggestions.size < count) {
+    suggestions.add(generateRandomAIName())
+  }
+  
+  return Array.from(suggestions).filter(name => name !== currentName)
+}
 
 export default {
   debugLog,
@@ -361,6 +461,11 @@ export default {
   safeJsonParse,
   debounce,
   throttle,
+  // Name utilities
+  generateRandomAIName,
+  validateAIName,
+  getRandomNameFromCategory,
+  suggestNames,
   // localStorage utilities
   isLocalStorageAvailable,
   getFromLocalStorage,
@@ -381,5 +486,6 @@ export default {
   DEFAULT_AI1_CONFIG,
   DEFAULT_AI2_CONFIG,
   DEFAULT_STARTING_MESSAGE,
-  DEFAULT_CONVERSATION_DIRECTION
+  DEFAULT_CONVERSATION_DIRECTION,
+  AI_NAME_PRESETS
 }

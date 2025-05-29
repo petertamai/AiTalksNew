@@ -1,4 +1,4 @@
-// app/page.tsx - FIXED AUDIO PLAYER WITH BETTER ERROR HANDLING
+// app/page.tsx - UPDATED: Pass agent configs to ConversationDisplay for real names
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
@@ -1302,6 +1302,9 @@ function MainApp() {
               hasAudio={hasAudio}
               isSharedView={false}
               className="flex-1"
+              // UPDATED: Pass agent configs for real names
+              ai1Config={ai1Config}
+              ai2Config={ai2Config}
               // Pass playback highlighting state
               playbackHighlightedMessage={playbackHighlightedMessage}
             />

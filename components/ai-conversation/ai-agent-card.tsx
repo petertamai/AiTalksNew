@@ -1,4 +1,4 @@
-// components/ai-conversation/ai-agent-card.tsx - FIXED HEIGHT VERSION WITH CORRECT GROQ VOICES
+// components/ai-conversation/ai-agent-card.tsx - Enhanced with prominent name editing
 "use client"
 
 import * as React from "react"
@@ -11,7 +11,10 @@ import {
   Sliders,
   Mic,
   Brain,
-  Zap
+  Zap,
+  Edit3,
+  Check,
+  X
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -21,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -76,6 +80,8 @@ export function AIAgentCard({
   className
 }: AIAgentCardProps) {
   const [isExpanded, setIsExpanded] = React.useState(false)
+  const [isEditingName, setIsEditingName] = React.useState(false)
+  const [tempName, setTempName] = React.useState(agent.name)
 
   // Debug logging
   React.useEffect(() => {
@@ -94,13 +100,15 @@ export function AIAgentCard({
       primary: "from-blue-500/20 to-cyan-500/20",
       border: "border-blue-500/30",
       icon: "text-blue-600",
-      accent: "bg-blue-500/10"
+      accent: "bg-blue-500/10",
+      ring: "ring-blue-500/20"
     },
     ai2: {
       primary: "from-purple-500/20 to-pink-500/20",
       border: "border-purple-500/30", 
       icon: "text-purple-600",
-      accent: "bg-purple-500/10"
+      accent: "bg-purple-500/10",
+      ring: "ring-purple-500/20"
     }
   }
 
@@ -133,6 +141,26 @@ export function AIAgentCard({
     onChange({ maxTokens: value[0] })
   }
 
+  const handleNameSave = () => {
+    if (tempName.trim() && tempName !== agent.name) {
+      onChange({ name: tempName.trim() })
+    }
+    setIsEditingName(false)
+  }
+
+  const handleNameCancel = () => {
+    setTempName(agent.name)
+    setIsEditingName(false)
+  }
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleNameSave()
+    } else if (e.key === 'Escape') {
+      handleNameCancel()
+    }
+  }
+
   // Check if current voice is supported by Groq
   const isVoiceSupported = VOICE_OPTIONS.some(option => option.value === agent.tts.voice)
   
@@ -156,7 +184,6 @@ export function AIAgentCard({
       "hover:shadow-lg hover:shadow-primary/5",
       `bg-gradient-to-br ${colors.primary}`,
       colors.border,
-      // FIXED HEIGHT - Using max-h-[70vh] and proper overflow handling
       "h-[80vh] flex flex-col",
       className
     )}>
@@ -174,17 +201,60 @@ export function AIAgentCard({
               <Bot className={cn("h-6 w-6", colors.icon)} />
             </div>
             <div className="space-y-2">
+              {/* ENHANCED NAME EDITING SECTION */}
               <div className="flex items-center gap-2">
-                <Input
-                  value={agent.name}
-                  onChange={(e) => onChange({ name: e.target.value })}
-                  className="h-8 text-base font-semibold bg-transparent border-none p-0 focus-visible:ring-0 min-w-[120px]"
-                  disabled={disabled}
-                />
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={tempName}
+                      onChange={(e) => setTempName(e.target.value)}
+                      onKeyDown={handleNameKeyDown}
+                      className={cn(
+                        "h-8 text-base font-semibold bg-background/50 border px-2",
+                        "focus:ring-2", colors.ring
+                      )}
+                      placeholder="Enter agent name..."
+                      disabled={disabled}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleNameSave}
+                      className="h-6 w-6 p-0 text-green-600 hover:bg-green-100"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleNameCancel}
+                      className="h-6 w-6 p-0 text-gray-500 hover:bg-gray-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group/name">
+                    <span className="text-base font-semibold">
+                      {agent.name}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setIsEditingName(true)}
+                      className="h-6 w-6 p-0 opacity-0 group-hover/name:opacity-100 transition-opacity"
+                      disabled={disabled}
+                    >
+                      <Edit3 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
                 <Badge variant="outline" className="text-sm">
                   {agent.id.toUpperCase()}
                 </Badge>
               </div>
+              
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 {selectedModel && (
                   <>
@@ -231,14 +301,49 @@ export function AIAgentCard({
       <CardContent className="relative flex-1 overflow-hidden pb-4">
         <ScrollArea className="h-full pr-4">
           <div className="space-y-6">
-            {/* Model Selection - FIXED TO WORK WITH SCROLL */}
+            {/* PROMINENT NAME EDITING SECTION */}
+            {isExpanded && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Edit3 className="h-5 w-5 text-primary" />
+                  <Label className="text-base font-medium">Agent Identity</Label>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Agent Name</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={agent.name}
+                        onChange={(e) => onChange({ name: e.target.value })}
+                        placeholder="Enter a unique name for this AI agent..."
+                        className={cn(
+                          "text-sm focus:ring-2", 
+                          colors.ring
+                        )}
+                        disabled={disabled}
+                      />
+                      <Badge variant="secondary" className="text-xs">
+                        {agent.id.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Give your AI agent a unique name that reflects its personality and role.
+                    </p>
+                  </div>
+                </div>
+                
+                <Separator />
+              </div>
+            )}
+
+            {/* Model Selection */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Brain className="h-5 w-5 text-primary" />
                 <Label className="text-base font-medium">AI Model</Label>
               </div>
               
-              {/* Model Selector with proper overflow handling */}
               <div className="relative z-50">
                 <ModelSelector
                   models={models || []}

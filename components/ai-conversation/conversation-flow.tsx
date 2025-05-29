@@ -1,4 +1,4 @@
-// components/ai-conversation/conversation-flow.tsx
+// components/ai-conversation/conversation-flow.tsx - Updated to show custom names
 "use client"
 
 import * as React from "react"
@@ -15,7 +15,8 @@ import {
   Clock,
   Send,
   Save,
-  RotateCcw
+  RotateCcw,
+  Shuffle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,7 +26,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ConversationDirection, AIAgent } from "@/types"
-import { DEFAULT_STARTING_MESSAGE } from "@/lib/utils"
+import { DEFAULT_STARTING_MESSAGE, generateRandomAIName } from "@/lib/utils"
 import { toast } from "sonner"
 
 interface ConversationFlowProps {
@@ -42,57 +43,6 @@ interface ConversationFlowProps {
   conversationDirection: ConversationDirection
   onDirectionChange: (direction: ConversationDirection) => void
 }
-
-const FLOW_OPTIONS: {
-  id: ConversationDirection
-  title: string
-  description: string
-  icon: React.ReactNode
-  path: React.ReactNode
-  gradient: string
-}[] = [
-  {
-    id: 'ai1-to-ai2',
-    title: 'AI-1 ↔ AI-2',
-    description: 'Automatic conversation between both AIs',
-    icon: <Zap className="h-4 w-4" />,
-    path: (
-      <div className="flex items-center gap-1">
-        <Bot className="h-3 w-3 text-blue-500" />
-        <ArrowRight className="h-3 w-3" />
-        <Bot className="h-3 w-3 text-purple-500" />
-      </div>
-    ),
-    gradient: 'from-blue-500/20 to-purple-500/20'
-  },
-  {
-    id: 'ai2-to-ai1',
-    title: 'AI-2 ↔ AI-1',
-    description: 'Reverse automatic AI conversation',
-    icon: <Zap className="h-4 w-4" />,
-    path: (
-      <div className="flex items-center gap-1">
-        <Bot className="h-3 w-3 text-purple-500" />
-        <ArrowRight className="h-3 w-3" />
-        <Bot className="h-3 w-3 text-blue-500" />
-      </div>
-    ),
-    gradient: 'from-purple-500/20 to-blue-500/20'
-  }
-]
-
-const SAMPLE_MESSAGES = [
-  "Hello! How are you today?",
-  "Let's discuss the future of artificial intelligence.",
-  "What are your thoughts on creativity and consciousness?",
-  "Can you help me understand quantum computing?",
-  "Tell me about your favorite philosophical concept.",
-  "What's the most interesting thing you've learned recently?",
-  "How do you approach problem-solving?",
-  "What role does emotion play in decision-making?",
-  "Describe your ideal conversation partner.",
-  "What questions fascinate you the most?"
-]
 
 export function ConversationFlow({
   ai1Config,
@@ -140,6 +90,49 @@ export function ConversationFlow({
     return errors
   }, [ai1Config, ai2Config, localMessage])
 
+  // Updated flow options with custom names
+  const FLOW_OPTIONS: {
+    id: ConversationDirection
+    title: string
+    description: string
+    icon: React.ReactNode
+    path: React.ReactNode
+    gradient: string
+  }[] = React.useMemo(() => [
+    {
+      id: 'ai1-to-ai2',
+      title: `${ai1Config.name} ↔ ${ai2Config.name}`,
+      description: `${ai1Config.name} starts, then automatic conversation`,
+      icon: <Zap className="h-4 w-4" />,
+      path: (
+        <div className="flex items-center gap-1">
+          <Bot className="h-3 w-3 text-blue-500" />
+          <span className="text-xs font-medium text-blue-600">{ai1Config.name.substring(0, 8)}</span>
+          <ArrowRight className="h-3 w-3" />
+          <Bot className="h-3 w-3 text-purple-500" />
+          <span className="text-xs font-medium text-purple-600">{ai2Config.name.substring(0, 8)}</span>
+        </div>
+      ),
+      gradient: 'from-blue-500/20 to-purple-500/20'
+    },
+    {
+      id: 'ai2-to-ai1',
+      title: `${ai2Config.name} ↔ ${ai1Config.name}`,
+      description: `${ai2Config.name} starts, then automatic conversation`,
+      icon: <Zap className="h-4 w-4" />,
+      path: (
+        <div className="flex items-center gap-1">
+          <Bot className="h-3 w-3 text-purple-500" />
+          <span className="text-xs font-medium text-purple-600">{ai2Config.name.substring(0, 8)}</span>
+          <ArrowRight className="h-3 w-3" />
+          <Bot className="h-3 w-3 text-blue-500" />
+          <span className="text-xs font-medium text-blue-600">{ai1Config.name.substring(0, 8)}</span>
+        </div>
+      ),
+      gradient: 'from-purple-500/20 to-blue-500/20'
+    }
+  ], [ai1Config.name, ai2Config.name])
+
   const handleStart = async () => {
     if (!canStart) return
 
@@ -158,14 +151,6 @@ export function ConversationFlow({
     } finally {
       setIsStarting(false)
     }
-  }
-
-  const handleQuickMessage = (sampleMessage: string) => {
-    setLocalMessage(sampleMessage)
-    toast.info('Quick Message Selected', {
-      description: 'Don\'t forget to save your changes!',
-      duration: 2000
-    })
   }
 
   const handleSaveMessage = () => {
@@ -192,6 +177,28 @@ export function ConversationFlow({
     })
   }
 
+  const handleGenerateRandomMessage = () => {
+    const randomMessages = [
+      `Hello ${ai2Config.name}! What's on your mind today?`,
+      `Hi there! I'm curious about your thoughts on creativity and consciousness.`,
+      `${ai2Config.name}, what do you think is the most fascinating aspect of human communication?`,
+      `Greetings! How do you approach complex problem-solving?`,
+      `Hello! What role does intuition play in decision-making?`,
+      `Hi ${ai2Config.name}, what's the most interesting thing you've learned recently?`,
+      `${ai2Config.name}, how do you define intelligence versus wisdom?`,
+      `Hello! What questions fascinate you the most about existence?`,
+      `Hi there! How do you think AI and humans can best collaborate?`,
+      `${ai2Config.name}, what's your perspective on the nature of understanding?`
+    ]
+    
+    const randomMessage = randomMessages[Math.floor(Math.random() * randomMessages.length)]
+    setLocalMessage(randomMessage)
+    toast.info('Random Message Generated', {
+      description: 'Click save to store this message in your settings.',
+      duration: 3000
+    })
+  }
+
   return (
     <Card className={cn(
       "relative overflow-hidden",
@@ -207,7 +214,7 @@ export function ConversationFlow({
             <div>
               <CardTitle className="text-lg">AI Conversation Flow</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Configure and start your AI-to-AI conversation
+                Configure and start conversation between {ai1Config.name} and {ai2Config.name}
               </p>
             </div>
           </div>
@@ -298,6 +305,16 @@ export function ConversationFlow({
               <Badge variant="outline" className="text-xs">
                 {localMessage.length} characters
               </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateRandomMessage}
+                disabled={disabled || isActive}
+                className="h-6 text-xs gap-1"
+              >
+                <Shuffle className="h-3 w-3" />
+                Random
+              </Button>
               {hasUnsavedChanges && (
                 <div className="flex gap-1">
                   <Button
@@ -327,7 +344,7 @@ export function ConversationFlow({
           <Textarea
             value={localMessage}
             onChange={(e) => setLocalMessage(e.target.value)}
-            placeholder="Enter the message that will start the AI conversation..."
+            placeholder={`Enter the message that will start the conversation between ${ai1Config.name} and ${ai2Config.name}...`}
             className="min-h-[100px] resize-none"
             disabled={disabled || isActive}
           />
@@ -351,7 +368,7 @@ export function ConversationFlow({
               ) : (
                 <>
                   <Play className="h-4 w-4 mr-2" />
-                  Start AI Conversation
+                  Start {ai1Config.name} ↔ {ai2Config.name}
                 </>
               )}
             </Button>
