@@ -14,7 +14,8 @@ import {
   CheckCircle,
   MoreHorizontal,
   Copy,
-  Download
+  Download,
+  Mic
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -117,30 +118,36 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
   return (
     <div
       className={cn(
-        "group relative p-4 rounded-lg border transition-all duration-200",
+        "group relative p-4 rounded-lg border transition-all duration-300",
         "hover:shadow-sm",
         styles.container,
         styles.darkContainer,
-        isSpeaking && "ring-2 ring-primary/50 animate-pulse",
+        isSpeaking && "ring-2 ring-primary/50 shadow-lg transform scale-[1.02]",
         isActive && "ring-2 ring-primary"
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-message-index={index}
     >
-      {/* Speaking Indicator */}
+      {/* Speaking Indicator with Animation */}
       {isSpeaking && (
-        <div className="absolute -top-2 left-4 flex items-center gap-1 bg-primary text-primary-foreground px-2 py-1 rounded-full text-xs">
-          <Volume2 className="h-3 w-3" />
-          <span>Speaking</span>
+        <div className="absolute -top-3 left-4 flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs shadow-lg z-10 animate-pulse">
+          <div className="flex gap-1">
+            <div className="w-1 h-3 bg-current rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+            <div className="w-1 h-3 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+            <div className="w-1 h-3 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+          </div>
+          <Mic className="h-3 w-3" />
+          <span className="font-medium">Speaking...</span>
         </div>
       )}
 
       <div className="flex items-start gap-3">
-        {/* Avatar */}
+        {/* Avatar with Speaking Animation */}
         <div className={cn(
-          "w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0",
-          styles.avatar
+          "w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0 transition-all duration-200",
+          styles.avatar,
+          isSpeaking && "ring-2 ring-primary/50 ring-offset-2 animate-pulse"
         )}>
           <div className={styles.icon}>
             {getAgentIcon()}
@@ -165,6 +172,13 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
                   {formatTimestamp(message.timestamp)}
                 </span>
               )}
+              {/* Audio Status Indicator */}
+              {isSpeaking && (
+                <Badge variant="default" className="text-xs bg-primary/20 text-primary border-primary/30">
+                  <Volume2 className="h-3 w-3 mr-1" />
+                  Playing
+                </Badge>
+              )}
             </div>
             
             {/* Actions */}
@@ -182,9 +196,12 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
             )}
           </div>
 
-          {/* Message Content */}
+          {/* Message Content with Audio Coordination Visual Effect */}
           <div className="prose prose-sm max-w-none">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+            <p className={cn(
+              "text-sm leading-relaxed whitespace-pre-wrap break-words transition-all duration-300",
+              isSpeaking && "text-primary font-medium"
+            )}>
               {message.content}
             </p>
           </div>
@@ -270,6 +287,7 @@ export function ConversationDisplay({
               <p className="text-sm text-muted-foreground">
                 {state.messages.length} messages
                 {hasAudio && ` • Audio available`}
+                {(state.speakingState.ai1 || state.speakingState.ai2) && ' • Audio coordinated'}
               </p>
             </div>
           </div>
@@ -326,7 +344,7 @@ export function ConversationDisplay({
                   <p className="text-sm text-muted-foreground max-w-sm">
                     {isSharedView 
                       ? 'This shared conversation appears to be empty or unavailable.'
-                      : 'Configure your AI agents and start a conversation to see messages appear here.'
+                      : 'Configure your AI agents and start a conversation. Audio and text are perfectly coordinated!'
                     }
                   </p>
                 </div>

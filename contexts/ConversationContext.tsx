@@ -14,7 +14,8 @@ interface ConversationContextType {
   setSpeakingState: (ai: 'ai1' | 'ai2', isSpeaking: boolean) => void
   clearMessages: () => void
   updateLastActivity: () => void
-  setError: (error: string | null) => void
+  setError: (error: string | undefined) => void
+  resetConversationState: () => void
 }
 
 type ConversationAction =
@@ -25,7 +26,8 @@ type ConversationAction =
   | { type: 'SET_SPEAKING'; payload: { ai: 'ai1' | 'ai2'; isSpeaking: boolean } }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'UPDATE_ACTIVITY' }
-  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_ERROR'; payload: string | undefined }
+  | { type: 'RESET_STATE' }
 
 const initialState: ConversationState = {
   isActive: false,
@@ -39,7 +41,7 @@ const initialState: ConversationState = {
     ai1: false,
     ai2: false,
   },
-  error: null,
+  error: undefined,
   lastActivity: undefined,
 }
 
@@ -66,7 +68,7 @@ function conversationReducer(
         ...state,
         isActive: true,
         currentAI: null,
-        error: null,
+        error: undefined,
         // Reset all indicators when starting
         typingIndicator: { ai1: false, ai2: false },
         speakingState: { ai1: false, ai2: false },
@@ -110,7 +112,10 @@ function conversationReducer(
       return {
         ...state,
         messages: [],
-        error: null,
+        error: undefined,
+        // Also clear all indicators when clearing messages
+        typingIndicator: { ai1: false, ai2: false },
+        speakingState: { ai1: false, ai2: false },
         lastActivity: new Date().toISOString(),
       }
       
@@ -124,6 +129,13 @@ function conversationReducer(
       return {
         ...state,
         error: action.payload,
+        lastActivity: new Date().toISOString(),
+      }
+
+    case 'RESET_STATE':
+      debugLog('🔄 ConversationReducer: Resetting entire state')
+      return {
+        ...initialState,
         lastActivity: new Date().toISOString(),
       }
       
@@ -186,10 +198,11 @@ export function ConversationProvider({
   useEffect(() => {
     if (state.messages.length > maxMessages) {
       const messagesToKeep = state.messages.slice(-maxMessages)
+      // First clear, then add the messages to keep
+      dispatch({ type: 'CLEAR_MESSAGES' })
       messagesToKeep.forEach(message => {
         dispatch({ type: 'ADD_MESSAGE', payload: message })
       })
-      dispatch({ type: 'CLEAR_MESSAGES' })
     }
   }, [state.messages.length, maxMessages])
 
@@ -218,16 +231,20 @@ export function ConversationProvider({
   const stopConversation = useCallback((reason?: string) => {
     debugLog('🛑 stopConversation called:', reason)
     
+    // First stop the conversation
+    dispatch({ type: 'STOP_CONVERSATION', payload: reason })
+    
+    // Add system message about stopping if reason provided
     if (reason) {
-      // Add system message about stopping
-      addMessage({
+      const stopMessage: ConversationMessage = {
+        id: generateId(),
         role: 'system',
         content: reason,
-      })
+        timestamp: new Date().toISOString(),
+      }
+      dispatch({ type: 'ADD_MESSAGE', payload: stopMessage })
     }
-    
-    dispatch({ type: 'STOP_CONVERSATION', payload: reason })
-  }, [addMessage])
+  }, [])
 
   const setTypingIndicator = useCallback((ai: 'ai1' | 'ai2', isTyping: boolean) => {
     debugLog(`💭 setTypingIndicator: ${ai} = ${isTyping}`)
@@ -248,16 +265,21 @@ export function ConversationProvider({
     dispatch({ type: 'UPDATE_ACTIVITY' })
   }, [])
 
-  const setError = useCallback((error: string | null) => {
+  const setError = useCallback((error: string | undefined) => {
     debugLog('❌ setError called:', error)
     dispatch({ type: 'SET_ERROR', payload: error })
+  }, [])
+
+  const resetConversationState = useCallback(() => {
+    debugLog('🔄 resetConversationState called - full state reset')
+    dispatch({ type: 'RESET_STATE' })
   }, [])
 
   // Auto-clear error after 10 seconds
   useEffect(() => {
     if (state.error) {
       const timer = setTimeout(() => {
-        setError(null)
+        setError(undefined)
       }, 10000)
       
       return () => clearTimeout(timer)
@@ -297,6 +319,7 @@ export function ConversationProvider({
     clearMessages,
     updateLastActivity,
     setError,
+    resetConversationState,
   }
 
   return (

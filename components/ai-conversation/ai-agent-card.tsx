@@ -1,4 +1,4 @@
-// components/ai-conversation/ai-agent-card.tsx - FIXED HEIGHT VERSION
+// components/ai-conversation/ai-agent-card.tsx - FIXED HEIGHT VERSION WITH CORRECT GROQ VOICES
 "use client"
 
 import * as React from "react"
@@ -36,12 +36,35 @@ interface AIAgentCardProps {
   className?: string
 }
 
+// Updated with actual Groq-supported voices from the API error message
 const VOICE_OPTIONS: { value: VoiceOption; label: string; accent: string }[] = [
-  { value: 'Arista-PlayAI', label: 'Arista', accent: 'Female, American' },
+  { value: 'Aaliyah-PlayAI', label: 'Aaliyah', accent: 'Female, Expressive' },
+  { value: 'Adelaide-PlayAI', label: 'Adelaide', accent: 'Female, Elegant' },
   { value: 'Angelo-PlayAI', label: 'Angelo', accent: 'Male, American' },
-  { value: 'Nova-PlayAI', label: 'Nova', accent: 'Female, British' },
+  { value: 'Arista-PlayAI', label: 'Arista', accent: 'Female, American' },
   { value: 'Atlas-PlayAI', label: 'Atlas', accent: 'Male, Deep' },
+  { value: 'Basil-PlayAI', label: 'Basil', accent: 'Male, British' },
+  { value: 'Briggs-PlayAI', label: 'Briggs', accent: 'Male, Confident' },
+  { value: 'Calum-PlayAI', label: 'Calum', accent: 'Male, Scottish' },
+  { value: 'Celeste-PlayAI', label: 'Celeste', accent: 'Female, Sophisticated' },
+  { value: 'Cheyenne-PlayAI', label: 'Cheyenne', accent: 'Female, Western' },
+  { value: 'Chip-PlayAI', label: 'Chip', accent: 'Male, Cheerful' },
+  { value: 'Cillian-PlayAI', label: 'Cillian', accent: 'Male, Irish' },
+  { value: 'Deedee-PlayAI', label: 'Deedee', accent: 'Female, Bubbly' },
+  { value: 'Eleanor-PlayAI', label: 'Eleanor', accent: 'Female, Classic' },
+  { value: 'Fritz-PlayAI', label: 'Fritz', accent: 'Male, German' },
+  { value: 'Gail-PlayAI', label: 'Gail', accent: 'Female, Professional' },
   { value: 'Indigo-PlayAI', label: 'Indigo', accent: 'Neutral, Calm' },
+  { value: 'Jennifer-PlayAI', label: 'Jennifer', accent: 'Female, Corporate' },
+  { value: 'Judy-PlayAI', label: 'Judy', accent: 'Female, Mature' },
+  { value: 'Mamaw-PlayAI', label: 'Mamaw', accent: 'Female, Southern' },
+  { value: 'Mason-PlayAI', label: 'Mason', accent: 'Male, Authoritative' },
+  { value: 'Mikail-PlayAI', label: 'Mikail', accent: 'Male, Eastern European' },
+  { value: 'Mitch-PlayAI', label: 'Mitch', accent: 'Male, Casual' },
+  { value: 'Nia-PlayAI', label: 'Nia', accent: 'Female, Modern' },
+  { value: 'Quinn-PlayAI', label: 'Quinn', accent: 'Unisex, Contemporary' },
+  { value: 'Ruby-PlayAI', label: 'Ruby', accent: 'Female, Vintage' },
+  { value: 'Thunder-PlayAI', label: 'Thunder', accent: 'Male, Powerful' },
 ]
 
 export function AIAgentCard({
@@ -61,7 +84,8 @@ export function AIAgentCard({
       isLoadingModels,
       disabled,
       agentName: agent.name,
-      currentModel: agent.model
+      currentModel: agent.model,
+      currentVoice: agent.tts.voice
     })
   }, [models, isLoadingModels, disabled, agent])
 
@@ -95,6 +119,7 @@ export function AIAgentCard({
   }
 
   const handleVoiceChange = (voice: VoiceOption) => {
+    console.log(`🎵 Voice changed for ${agent.id}:`, voice)
     onChange({
       tts: { ...agent.tts, voice }
     })
@@ -107,6 +132,23 @@ export function AIAgentCard({
   const handleMaxTokensChange = (value: number[]) => {
     onChange({ maxTokens: value[0] })
   }
+
+  // Check if current voice is supported by Groq
+  const isVoiceSupported = VOICE_OPTIONS.some(option => option.value === agent.tts.voice)
+  
+  // If current voice is not supported, suggest a replacement
+  React.useEffect(() => {
+    if (!isVoiceSupported && agent.tts.voice) {
+      console.warn(`⚠️ Voice ${agent.tts.voice} not supported by Groq. Available voices:`, VOICE_OPTIONS.map(v => v.value))
+      
+      // Auto-fix with a similar voice
+      const fallbackVoice = agent.id === 'ai1' ? 'Arista-PlayAI' : 'Angelo-PlayAI'
+      if (agent.tts.voice !== fallbackVoice) {
+        console.log(`🔧 Auto-fixing ${agent.id} voice from ${agent.tts.voice} to ${fallbackVoice}`)
+        handleVoiceChange(fallbackVoice)
+      }
+    }
+  }, [agent.tts.voice, isVoiceSupported, agent.id])
 
   return (
     <Card className={cn(
@@ -155,6 +197,11 @@ export function AIAgentCard({
                     <Separator orientation="vertical" className="h-4" />
                     <Volume2 className="h-4 w-4" />
                     <span>{agent.tts.voice.replace('-PlayAI', '')}</span>
+                    {!isVoiceSupported && (
+                      <Badge variant="destructive" className="text-xs">
+                        Not Supported
+                      </Badge>
+                    )}
                   </>
                 )}
               </div>
@@ -263,7 +310,7 @@ export function AIAgentCard({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Mic className="h-5 w-5 text-muted-foreground" />
-                      <h4 className="text-base font-medium">Text-to-Speech</h4>
+                      <h4 className="text-base font-medium">Text-to-Speech (Groq)</h4>
                     </div>
                     <div className="flex items-center space-x-3">
                       <Checkbox
@@ -282,27 +329,50 @@ export function AIAgentCard({
                   </div>
                   
                   {agent.tts.enabled && (
-                    <Select
-                      value={agent.tts.voice}
-                      onValueChange={handleVoiceChange}
-                      disabled={disabled}
-                    >
-                      <SelectTrigger className="h-12">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {VOICE_OPTIONS.map((voice) => (
-                          <SelectItem key={voice.value} value={voice.value}>
-                            <div className="flex flex-col py-1">
-                              <span className="font-medium">{voice.label}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {voice.accent}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-3">
+                      <Select
+                        value={agent.tts.voice}
+                        onValueChange={handleVoiceChange}
+                        disabled={disabled}
+                      >
+                        <SelectTrigger className="h-12">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {VOICE_OPTIONS.map((voice) => (
+                            <SelectItem key={voice.value} value={voice.value}>
+                              <div className="flex flex-col py-1">
+                                <span className="font-medium">{voice.label}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {voice.accent}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {!isVoiceSupported && (
+                        <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-600">⚠️</span>
+                            <span className="font-medium">Voice Not Supported</span>
+                          </div>
+                          <p className="mt-1">
+                            The selected voice "{agent.tts.voice}" is not supported by Groq. 
+                            Please select a different voice from the list above.
+                          </p>
+                        </div>
+                      )}
+                      
+                      <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-2">
+                        <div className="flex items-center gap-1 mb-1">
+                          <Sparkles className="h-3 w-3" />
+                          <span className="font-medium">Groq TTS Info</span>
+                        </div>
+                        <p>{VOICE_OPTIONS.length} premium voices available • Ultra-fast generation • High quality audio</p>
+                      </div>
+                    </div>
                   )}
                 </div>
 
