@@ -332,27 +332,6 @@ export function ConversationFlow({
             disabled={disabled || isActive}
           />
           
-          {/* Quick Messages */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Quick start options:</Label>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLE_MESSAGES.slice(0, 6).map((sample, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleQuickMessage(sample)}
-                  disabled={disabled || isActive}
-                  className={cn(
-                    "text-xs px-3 py-1 rounded-full border",
-                    "hover:bg-accent transition-colors",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                    localMessage === sample ? "bg-primary/10 border-primary" : "border-border"
-                  )}
-                >
-                  {sample.length > 35 ? sample.slice(0, 35) + '...' : sample}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Action Buttons */}
@@ -436,14 +415,6 @@ export function ConversationFlow({
           </div>
         )}
 
-        {/* Settings Persistence Info */}
-        <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Save className="h-3 w-3" />
-            <span className="font-medium">Auto-Save Enabled</span>
-          </div>
-          <p>Your conversation settings, including starting message and flow direction, are automatically saved to your browser and will be restored when you return.</p>
-        </div>
       </CardContent>
     </Card>
   )
