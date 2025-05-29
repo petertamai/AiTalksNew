@@ -1,4 +1,4 @@
-// app/page.tsx - UPDATED: Pass agent configs to ConversationDisplay for real names
+// app/page.tsx - COMPLETE FIXED VERSION: Proper conversation flow and context building
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
@@ -40,7 +40,7 @@ interface AudioPlayerState {
   duration: number
 }
 
-// FIXED: Robust Audio Player Class with Better Error Handling
+// ROBUST Audio Player Class with Enhanced Error Handling
 class ConversationAudioPlayer {
   private audioFiles: Array<{filename: string, messageIndex: number, agent: 'ai1' | 'ai2', url: string}> = []
   private currentAudio: HTMLAudioElement | null = null
@@ -50,7 +50,7 @@ class ConversationAudioPlayer {
   private onStateChange: (state: AudioPlayerState) => void
   private onMessageHighlight: (messageIndex: number, agent: 'ai1' | 'ai2' | null) => void
   private errorCount = 0
-  private maxErrors = 5 // Prevent infinite loops
+  private maxErrors = 5
   private skipAfterError = false
 
   constructor(
@@ -73,12 +73,10 @@ class ConversationAudioPlayer {
         return false
       }
 
-      // Parse and sort audio files, match with message data
       this.audioFiles = data.audioFiles.map((filename: string) => {
         const indexMatch = filename.match(/message_(\d+)\.mp3/)
         const messageIndex = indexMatch ? parseInt(indexMatch[1]) : 0
         
-        // Get agent from actual message data
         const message = messages[messageIndex]
         const agent = message?.agent || 'ai1'
         
@@ -92,10 +90,8 @@ class ConversationAudioPlayer {
 
       console.log('✅ Loaded audio files:', this.audioFiles.length, this.audioFiles)
       
-      // Reset error tracking
       this.errorCount = 0
       this.skipAfterError = false
-      
       this.updateState()
       return true
     } catch (error) {
@@ -155,7 +151,6 @@ class ConversationAudioPlayer {
       return
     }
 
-    // Reset error tracking when starting fresh
     this.errorCount = 0
     this.skipAfterError = false
     this.isPlaying = true
@@ -165,7 +160,6 @@ class ConversationAudioPlayer {
   }
 
   private async playCurrentFile(): Promise<void> {
-    // FIXED: Prevent infinite loops with error limit
     if (this.errorCount >= this.maxErrors) {
       console.error('❌ Too many errors, stopping playback')
       toast.error('Audio Playback Failed', {
@@ -187,10 +181,8 @@ class ConversationAudioPlayer {
     const currentFile = this.audioFiles[this.currentIndex]
     console.log(`🎵 Playing file ${this.currentIndex + 1}/${this.audioFiles.length}:`, currentFile.filename)
 
-    // Highlight current message
     this.onMessageHighlight(currentFile.messageIndex, currentFile.agent)
 
-    // Clean up previous audio
     if (this.currentAudio) {
       this.currentAudio.pause()
       this.currentAudio.src = ''
@@ -200,24 +192,13 @@ class ConversationAudioPlayer {
       this.currentAudio.onloadedmetadata = null
     }
 
-    // Create new audio element
     this.currentAudio = new Audio()
     
-    // FIXED: Better error handling with detailed logging
     this.currentAudio.onerror = (event) => {
       this.errorCount++
       console.error(`❌ Audio error for ${currentFile.filename} (Error #${this.errorCount}):`, event)
-      console.error('❌ Audio error details:', {
-        error: this.currentAudio?.error,
-        networkState: this.currentAudio?.networkState,
-        readyState: this.currentAudio?.readyState,
-        src: this.currentAudio?.src
-      })
       
-      // Clear highlight for failed message
       this.onMessageHighlight(-1, null)
-      
-      // Move to next file and continue if we haven't hit error limit
       this.currentIndex++
       
       if (this.isPlaying && this.currentIndex < this.audioFiles.length && this.errorCount < this.maxErrors) {
@@ -226,7 +207,7 @@ class ConversationAudioPlayer {
           if (this.isPlaying) {
             this.playCurrentFile()
           }
-        }, 500) // Brief delay before trying next file
+        }, 500)
       } else {
         console.error('❌ Stopping playback due to errors or end of files')
         this.stop()
@@ -236,14 +217,10 @@ class ConversationAudioPlayer {
     this.currentAudio.onended = () => {
       console.log(`✅ Completed playing: ${currentFile.filename}`)
       
-      // Clear highlight for completed message
       this.onMessageHighlight(-1, null)
-      
-      // Move to next file
       this.currentIndex++
       
       if (this.isPlaying && this.currentIndex < this.audioFiles.length) {
-        // Brief pause between files for natural flow
         setTimeout(() => {
           if (this.isPlaying) {
             this.playCurrentFile()
@@ -258,26 +235,22 @@ class ConversationAudioPlayer {
     this.currentAudio.ontimeupdate = () => this.updateState()
     this.currentAudio.onloadedmetadata = () => this.updateState()
 
-    // FIXED: Add load event to ensure file is ready
     this.currentAudio.oncanplaythrough = () => {
       console.log(`✅ Audio file ready: ${currentFile.filename}`)
     }
 
-    // Set source and load
     this.currentAudio.src = currentFile.url
     this.currentAudio.load()
 
     try {
-      // FIXED: Add timeout to prevent hanging
       const playPromise = this.currentAudio.play()
       
-      // Set a timeout in case play() hangs
       const playTimeout = setTimeout(() => {
         if (this.currentAudio && this.currentAudio.paused) {
           console.error(`⏱️ Audio play timeout for ${currentFile.filename}`)
           this.currentAudio.dispatchEvent(new Event('error'))
         }
-      }, 10000) // 10 second timeout
+      }, 10000)
       
       await playPromise
       clearTimeout(playTimeout)
@@ -288,7 +261,6 @@ class ConversationAudioPlayer {
     } catch (error) {
       console.error(`❌ Failed to play ${currentFile.filename}:`, error)
       
-      // Increment error count and try next file
       this.errorCount++
       this.currentIndex++
       
@@ -328,11 +300,9 @@ class ConversationAudioPlayer {
     this.isPlaying = false
     this.isPaused = false
     this.currentIndex = 0
-    this.errorCount = 0 // Reset error count
+    this.errorCount = 0
     
-    // Clear any message highlighting
     this.onMessageHighlight(-1, null)
-    
     this.updateState()
     console.log('⏹️ Audio playback stopped')
   }
@@ -410,10 +380,8 @@ function MainApp() {
   const currentMessagesRef = useRef<typeof state.messages>([])
   const audioPlayerRef = useRef<ConversationAudioPlayer | null>(null)
   
-  // Initialize audio elements only on client side to avoid SSR issues
   const audioElements = useRef<{ [key: string]: HTMLAudioElement }>({})
 
-  // Audio cleanup function
   const cleanupAudio = useCallback((aiId: string) => {
     const audio = audioElements.current[aiId]
     if (audio) {
@@ -455,14 +423,12 @@ function MainApp() {
       setConversationId(initialConversationId)
       activeConversationIdRef.current = initialConversationId
       
-      // Initialize audio elements
       audioElements.current = {
         ai1: new Audio(),
         ai2: new Audio(),
       }
       console.log('🔊 Audio elements initialized on client side')
 
-      // Load conversation settings from localStorage
       try {
         console.log('🔄 Loading settings from localStorage...')
         const savedSettings = loadConversationSettings()
@@ -495,7 +461,6 @@ function MainApp() {
       }
     }
 
-    // Cleanup on unmount
     return () => {
       if (typeof window !== 'undefined') {
         Object.keys(audioElements.current).forEach(aiId => {
@@ -550,80 +515,42 @@ function MainApp() {
     setDebugLogs(prev => [...prev.slice(-19), logEntry])
   }, [])
 
-  // Get current conversation history for AI context
-  const getCurrentConversationHistory = useCallback(() => {
+  // FIXED: Get current conversation history for AI context - PROPER perspective building
+  const getCurrentConversationHistory = useCallback((forAI: 'ai1' | 'ai2') => {
     const messages = currentMessagesRef.current
-    return messages
-      .filter(msg => msg.role !== 'system')
-      .map(msg => ({
-        role: msg.role === 'human' ? 'user' : 'assistant',
-        content: msg.content,
-        ...(msg.agent && msg.role === 'assistant' ? {
-          name: msg.agent === 'ai1' ? ai1Config.name : ai2Config.name
-        } : {})
-      }))
-      .slice(-20)
-  }, [ai1Config.name, ai2Config.name])
-
-  const getAIResponse = async (
-    aiId: 'ai1' | 'ai2',
-    prompt: string
-  ) => {
-    const config = aiId === 'ai1' ? ai1Config : ai2Config
     
-    log(`🤖 Getting ${aiId} (${config.name}) response using model: ${config.model}`)
-    
-    const conversationHistory = getCurrentConversationHistory()
-    
-    log(`📚 Conversation history for ${aiId}:`, {
-      historyLength: conversationHistory.length,
-      totalMessages: currentMessagesRef.current.length
-    })
-
-    const messages = [
-      {
-        role: 'system',
-        content: `${config.prompt}\n\nYou are ${config.name}, engaging in a conversation with another AI assistant. Keep your responses natural, thoughtful, and conversational. Build upon the conversation history and respond directly to what was just said. Avoid repeating information already covered unless it adds new insight.`
-      },
-      ...conversationHistory,
-      {
-        role: 'user',
-        content: prompt
-      }
-    ]
-
-    const response = await fetch('/api/openrouter/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        max_tokens: config.maxTokens,
-        temperature: config.temperature,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`API error: ${response.status} - ${errorText}`)
-    }
-
-    const data: OpenRouterResponse = await response.json()
-    
-    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-      const responseContent = data.choices[0].message.content.trim()
-      log(`✅ ${aiId} response received:`, {
-        length: responseContent.length,
-        preview: responseContent.substring(0, 100) + '...'
+    // Get only assistant messages (actual AI responses) for conversation context
+    const conversationMessages = messages
+      .filter(msg => msg.role === 'assistant' && msg.agent) // Only AI messages with valid agents
+      .map((msg) => {
+        // Build proper perspective: 
+        // - This AI's messages become 'assistant' role
+        // - Other AI's messages become 'user' role
+        if (msg.agent === forAI) {
+          return {
+            role: 'assistant' as const,
+            content: msg.content,
+            name: forAI === 'ai1' ? ai1Config.name : ai2Config.name
+          }
+        } else {
+          return {
+            role: 'user' as const,
+            content: msg.content,
+            name: msg.agent === 'ai1' ? ai1Config.name : ai2Config.name
+          }
+        }
       })
-      return responseContent
-    } else {
-      throw new Error('Invalid response format from API')
-    }
-  }
+      .slice(-10) // Keep last 10 messages for context (5 turns each)
+
+    log(`📚 Built conversation history for ${forAI}:`, {
+      historyLength: conversationMessages.length,
+      totalMessagesInState: messages.length,
+      perspective: `${forAI} sees their own messages as 'assistant', other AI as 'user'`,
+      lastRole: conversationMessages.length > 0 ? conversationMessages[conversationMessages.length - 1].role : 'none'
+    })
+
+    return conversationMessages
+  }, [ai1Config.name, ai2Config.name, log])
 
   const addThinkingDelay = async (aiId: 'ai1' | 'ai2') => {
     log(`💭 ${aiId} is thinking...`)
@@ -766,9 +693,10 @@ function MainApp() {
     }
   }
 
+  // FIXED: Streamlined processTurn function with proper API calls
   const processTurn = async (
     currentAi: 'ai1' | 'ai2',
-    message: string,
+    promptMessage: string,
     isFirstMessage = false
   ): Promise<void> => {
     log(`🎬 Processing turn for ${currentAi}, first: ${isFirstMessage}, active: ${isConversationActiveRef.current}`)
@@ -787,54 +715,114 @@ function MainApp() {
         return
       }
 
-      log(`📞 Getting AI response for ${currentAi}`)
+      log(`📞 Getting AI response for ${currentAi} with prompt: "${promptMessage.substring(0, 50)}..."`)
       
-      const response = await getAIResponse(currentAi, message)
+      // Get conversation history from this AI's perspective
+      const conversationHistory = getCurrentConversationHistory(currentAi)
+      const config = currentAi === 'ai1' ? ai1Config : ai2Config
       
-      if (response && response.includes('#END#')) {
-        log(`🔚 ${currentAi} responded with #END#. Ending conversation.`)
-        setTypingIndicator(currentAi, false)
-        isConversationActiveRef.current = false
-        stopConversation('Conversation has ended naturally')
-        return
-      }
+      // Build messages for API call - CLEAN, NO DUPLICATION
+      const messages = [
+        {
+          role: 'system',
+          content: `${config.prompt}\n\nYou are ${config.name}, engaging in a conversation with another AI assistant. Keep your responses natural, thoughtful, and conversational. Build upon the conversation history and respond directly to what was just said. Avoid repeating information already covered unless it adds new insight.`
+        },
+        ...conversationHistory,
+        {
+          role: 'user',
+          content: promptMessage
+        }
+      ]
 
-      setTypingIndicator(currentAi, false)
-
-      if (!response || response.trim() === '') {
-        throw new Error(`Empty response from ${currentAi}`)
-      }
-
-      const messageIndex = currentMessagesRef.current.length
-      log(`💬 Adding message from ${currentAi}, index: ${messageIndex}`)
-      
-      addMessage({
-        role: 'assistant',
-        content: response,
-        agent: currentAi,
-        model: currentAi === 'ai1' ? ai1Config.model : ai2Config.model,
+      log(`📤 Sending clean API request for ${currentAi} (${config.name}):`, {
+        totalMessages: messages.length,
+        systemMessage: 1,
+        historyMessages: conversationHistory.length,
+        promptMessage: 1,
+        lastUserMessage: promptMessage.substring(0, 50) + '...'
       })
 
-      log(`🎵 Starting TTS for ${currentAi} and WAITING for completion...`)
-      await speakText(currentAi, response, messageIndex)
-      log(`✅ TTS completed for ${currentAi}, conversation can continue`)
+      // Make API call
+      const response = await fetch('/api/openrouter/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          model: config.model,
+          messages,
+          max_tokens: config.maxTokens,
+          temperature: config.temperature,
+        }),
+      })
 
-      if (!isConversationActiveRef.current) {
-        log(`❌ Conversation stopped after TTS completion for ${currentAi}`)
-        return
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`API error: ${response.status} - ${errorText}`)
       }
 
-      log(`⏸️ Brief pause between speakers...`)
-      await new Promise(resolve => setTimeout(resolve, 800))
+      const data: OpenRouterResponse = await response.json()
+      
+      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+        const responseContent = data.choices[0].message.content.trim()
+        log(`✅ ${currentAi} response received:`, {
+          length: responseContent.length,
+          preview: responseContent.substring(0, 100) + '...'
+        })
 
-      if (!isConversationActiveRef.current) {
-        log(`❌ Conversation stopped during pause after ${currentAi}`)
-        return
+        // Check for conversation end
+        if (responseContent && responseContent.includes('#END#')) {
+          log(`🔚 ${currentAi} responded with #END#. Ending conversation.`)
+          setTypingIndicator(currentAi, false)
+          isConversationActiveRef.current = false
+          stopConversation('Conversation has ended naturally')
+          return
+        }
+
+        setTypingIndicator(currentAi, false)
+
+        if (!responseContent || responseContent.trim() === '') {
+          throw new Error(`Empty response from ${currentAi}`)
+        }
+
+        const messageIndex = currentMessagesRef.current.length
+        log(`💬 Adding message from ${currentAi}, index: ${messageIndex}`)
+        
+        // Add message to conversation history
+        addMessage({
+          role: 'assistant',
+          content: responseContent,
+          agent: currentAi,
+          model: config.model,
+        })
+
+        log(`🎵 Starting TTS for ${currentAi} and WAITING for completion...`)
+        await speakText(currentAi, responseContent, messageIndex)
+        log(`✅ TTS completed for ${currentAi}, conversation can continue`)
+
+        if (!isConversationActiveRef.current) {
+          log(`❌ Conversation stopped after TTS completion for ${currentAi}`)
+          return
+        }
+
+        log(`⏸️ Brief pause between speakers...`)
+        await new Promise(resolve => setTimeout(resolve, 800))
+
+        if (!isConversationActiveRef.current) {
+          log(`❌ Conversation stopped during pause after ${currentAi}`)
+          return
+        }
+
+        const otherAi = currentAi === 'ai1' ? 'ai2' : 'ai1'
+        log(`🔄 Continuing conversation with ${otherAi} (previous speaker: ${currentAi} finished)`)
+        
+        // Continue conversation with the other AI, using current AI's response as prompt
+        await processTurn(otherAi, responseContent, false)
+        
+      } else {
+        throw new Error('Invalid response format from API')
       }
-
-      const otherAi = currentAi === 'ai1' ? 'ai2' : 'ai1'
-      log(`🔄 Continuing conversation with ${otherAi} (previous speaker: ${currentAi} finished)`)
-      await processTurn(otherAi, response, false)
       
     } catch (error) {
       log(`❌ Error in processTurn for ${currentAi}: ${error}`)
@@ -915,9 +903,11 @@ function MainApp() {
         receiver = 'ai1'
       }
 
-      log(`📝 Adding initial message from ${sender} to ${receiver}`)
+      log(`📝 Adding initial message from ${sender} to start conversation`)
 
       const initialMessageIndex = 0
+      
+      // Add the initial message to conversation history FIRST
       addMessage({
         role: 'assistant',
         content: message,
@@ -933,7 +923,9 @@ function MainApp() {
         duration: 3000
       })
 
-      log(`🎯 Starting conversation flow with ${receiver}`)
+      log(`🎯 Starting conversation flow with ${receiver} responding to: "${message.substring(0, 50)}..."`)
+      
+      // Start conversation with the receiver, passing the initial message as the prompt
       await processTurn(receiver, message, true)
       
     } catch (error) {
@@ -954,7 +946,6 @@ function MainApp() {
     log('🛑 Stopping conversation manually')
     isConversationActiveRef.current = false
     
-    // Stop audio player if active
     if (audioPlayerRef.current) {
       audioPlayerRef.current.stop()
     }
@@ -1098,7 +1089,6 @@ function MainApp() {
     }
   }
 
-  // FIXED: Sequential Audio Playback with Better Error Handling
   const handlePlayAudio = async () => {
     const currentConversationId = activeConversationIdRef.current
     
@@ -1194,7 +1184,7 @@ function MainApp() {
             </Link>
           
           <div className="flex items-center gap-2">
-            {/* FIXED: Audio Player Controls with Better Error Display */}
+            {/* Audio Player Controls */}
             {hasAudio && state.messages.length > 0 && (
               <div className="flex items-center gap-1 border rounded-lg p-1">
                 {!audioPlayerState.isPlaying ? (
@@ -1261,7 +1251,7 @@ function MainApp() {
         <div className="bg-black/95 text-green-400 p-4 text-xs font-mono max-h-48 overflow-y-auto border-b flex-shrink-0">
           <div className="flex items-center gap-2 mb-2 text-green-300">
             <Zap className="h-3 w-3" />
-            <span>Debug Console - Active: {activeConversationIdRef.current} | Playback: {playbackHighlightedMessage.messageIndex} | Errors: {audioPlayerRef.current ? 'tracked' : 'none'}</span>
+            <span>Debug Console - Active: {activeConversationIdRef.current} | Playback: {playbackHighlightedMessage.messageIndex} | Messages: {state.messages.length}</span>
           </div>
           {debugLogs.map((log, index) => (
             <div key={index} className="opacity-80 hover:opacity-100 transition-opacity">
@@ -1289,8 +1279,6 @@ function MainApp() {
               conversationDirection={conversationDirection}
               onDirectionChange={setConversationDirection}
             />
-            
-
           </div>
 
           {/* Right Panel - Conversation Display */}
@@ -1302,10 +1290,8 @@ function MainApp() {
               hasAudio={hasAudio}
               isSharedView={false}
               className="flex-1"
-              // UPDATED: Pass agent configs for real names
               ai1Config={ai1Config}
               ai2Config={ai2Config}
-              // Pass playback highlighting state
               playbackHighlightedMessage={playbackHighlightedMessage}
             />
           </div>

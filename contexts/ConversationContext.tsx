@@ -1,4 +1,4 @@
-// contexts/ConversationContext.tsx
+// contexts/ConversationContext.tsx - FIXED: Enhanced message handling and state management
 'use client'
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react'
@@ -16,6 +16,14 @@ interface ConversationContextType {
   updateLastActivity: () => void
   setError: (error: string | undefined) => void
   resetConversationState: () => void
+  // NEW: Helper functions for conversation flow
+  getConversationStats: () => {
+    totalMessages: number
+    ai1Messages: number
+    ai2Messages: number
+    lastSpeaker: 'ai1' | 'ai2' | null
+    conversationLength: number
+  }
 }
 
 type ConversationAction =
@@ -56,10 +64,35 @@ function conversationReducer(
   
   switch (action.type) {
     case 'ADD_MESSAGE':
+      // FIXED: Ensure messages are added in proper sequence with validation
+      const newMessage = action.payload
+      
+      // Validate message structure
+      if (!newMessage.content || !newMessage.role) {
+        debugLog('❌ Invalid message structure, skipping:', newMessage)
+        return state
+      }
+
+      // For assistant messages, ensure agent is specified and valid
+      if (newMessage.role === 'assistant') {
+        if (!newMessage.agent || (newMessage.agent !== 'ai1' && newMessage.agent !== 'ai2')) {
+          debugLog('⚠️ Assistant message missing or invalid agent, defaulting to ai1:', newMessage)
+          newMessage.agent = 'ai1'
+        }
+      }
+
+      debugLog(`📝 Adding message [${state.messages.length}]:`, {
+        role: newMessage.role,
+        agent: newMessage.agent,
+        contentLength: newMessage.content.length,
+        preview: newMessage.content.substring(0, 50) + '...'
+      })
+
       return {
         ...state,
-        messages: [...state.messages, action.payload],
-        lastActivity: action.payload.timestamp,
+        messages: [...state.messages, newMessage],
+        lastActivity: newMessage.timestamp,
+        currentAI: newMessage.role === 'assistant' ? (newMessage.agent || null) : state.currentAI,
       }
       
     case 'START_CONVERSATION':
@@ -94,6 +127,7 @@ function conversationReducer(
           ...state.typingIndicator,
           [action.payload.ai]: action.payload.isTyping,
         },
+        currentAI: action.payload.isTyping ? action.payload.ai : state.currentAI,
         lastActivity: new Date().toISOString(),
       }
       
@@ -104,6 +138,7 @@ function conversationReducer(
           ...state.speakingState,
           [action.payload.ai]: action.payload.isSpeaking,
         },
+        currentAI: action.payload.isSpeaking ? action.payload.ai : state.currentAI,
         lastActivity: new Date().toISOString(),
       }
       
@@ -113,6 +148,7 @@ function conversationReducer(
         ...state,
         messages: [],
         error: undefined,
+        currentAI: null,
         // Also clear all indicators when clearing messages
         typingIndicator: { ai1: false, ai2: false },
         speakingState: { ai1: false, ai2: false },
@@ -213,23 +249,24 @@ export function ConversationProvider({
       timestamp: new Date().toISOString(),
     }
     
-    debugLog('💬 Adding message:', {
+    debugLog('💬 Adding message via context:', {
       role: fullMessage.role,
       agent: fullMessage.agent,
       contentPreview: fullMessage.content.substring(0, 50) + '...',
-      messageId: fullMessage.id
+      messageId: fullMessage.id,
+      sequenceNumber: state.messages.length
     })
     
     dispatch({ type: 'ADD_MESSAGE', payload: fullMessage })
-  }, [])
+  }, [state.messages.length])
 
   const startConversation = useCallback(() => {
-    debugLog('🎬 startConversation called')
+    debugLog('🎬 startConversation called via context')
     dispatch({ type: 'START_CONVERSATION' })
   }, [])
 
   const stopConversation = useCallback((reason?: string) => {
-    debugLog('🛑 stopConversation called:', reason)
+    debugLog('🛑 stopConversation called via context:', reason)
     
     // First stop the conversation
     dispatch({ type: 'STOP_CONVERSATION', payload: reason })
@@ -247,17 +284,17 @@ export function ConversationProvider({
   }, [])
 
   const setTypingIndicator = useCallback((ai: 'ai1' | 'ai2', isTyping: boolean) => {
-    debugLog(`💭 setTypingIndicator: ${ai} = ${isTyping}`)
+    debugLog(`💭 setTypingIndicator via context: ${ai} = ${isTyping}`)
     dispatch({ type: 'SET_TYPING', payload: { ai, isTyping } })
   }, [])
 
   const setSpeakingState = useCallback((ai: 'ai1' | 'ai2', isSpeaking: boolean) => {
-    debugLog(`🎵 setSpeakingState: ${ai} = ${isSpeaking}`)
+    debugLog(`🎵 setSpeakingState via context: ${ai} = ${isSpeaking}`)
     dispatch({ type: 'SET_SPEAKING', payload: { ai, isSpeaking } })
   }, [])
 
   const clearMessages = useCallback(() => {
-    debugLog('🗑️ clearMessages called')
+    debugLog('🗑️ clearMessages called via context')
     dispatch({ type: 'CLEAR_MESSAGES' })
   }, [])
 
@@ -266,14 +303,33 @@ export function ConversationProvider({
   }, [])
 
   const setError = useCallback((error: string | undefined) => {
-    debugLog('❌ setError called:', error)
+    debugLog('❌ setError called via context:', error)
     dispatch({ type: 'SET_ERROR', payload: error })
   }, [])
 
   const resetConversationState = useCallback(() => {
-    debugLog('🔄 resetConversationState called - full state reset')
+    debugLog('🔄 resetConversationState called via context - full state reset')
     dispatch({ type: 'RESET_STATE' })
   }, [])
+
+  // NEW: Helper function for conversation statistics
+  const getConversationStats = useCallback(() => {
+    const messages = state.messages.filter(m => m.role === 'assistant')
+    const ai1Messages = messages.filter(m => m.agent === 'ai1')
+    const ai2Messages = messages.filter(m => m.agent === 'ai2')
+    const lastMessage = messages[messages.length - 1]
+    
+    const stats = {
+      totalMessages: messages.length,
+      ai1Messages: ai1Messages.length,
+      ai2Messages: ai2Messages.length,
+      lastSpeaker: (lastMessage?.agent as 'ai1' | 'ai2') || null,
+      conversationLength: messages.length
+    }
+    
+    debugLog('📊 Conversation stats calculated:', stats)
+    return stats
+  }, [state.messages])
 
   // Auto-clear error after 10 seconds
   useEffect(() => {
@@ -288,11 +344,12 @@ export function ConversationProvider({
 
   // Debug logging for state changes
   useEffect(() => {
-    debugLog('🔍 Conversation state updated:', {
+    debugLog('🔍 Conversation state updated via context:', {
       isActive: state.isActive,
       messageCount: state.messages.length,
       typing: state.typingIndicator,
       speaking: state.speakingState,
+      currentAI: state.currentAI,
       error: state.error,
       lastActivity: state.lastActivity
     })
@@ -303,7 +360,7 @@ export function ConversationProvider({
     return () => {
       // Stop any active conversation on unmount
       if (state.isActive) {
-        debugLog('🧹 Cleaning up active conversation on unmount')
+        debugLog('🧹 Cleaning up active conversation on context unmount')
         dispatch({ type: 'STOP_CONVERSATION', payload: 'Component unmounted' })
       }
     }
@@ -320,6 +377,7 @@ export function ConversationProvider({
     updateLastActivity,
     setError,
     resetConversationState,
+    getConversationStats,
   }
 
   return (
@@ -349,6 +407,7 @@ export function useConversationStatus() {
     hasError: Boolean(state.error),
     error: state.error,
     lastActivity: state.lastActivity,
+    currentAI: state.currentAI,
   }
 }
 
@@ -409,6 +468,18 @@ export function useConversationMessages() {
     )
   }, [messages])
   
+  // NEW: Get conversation flow for AI context building
+  const getConversationFlow = useCallback((forAI: 'ai1' | 'ai2') => {
+    const assistantMessages = messages.filter(m => m.role === 'assistant')
+    
+    return assistantMessages.map((message, index) => ({
+      ...message,
+      isFromSelf: message.agent === forAI,
+      turnNumber: index + 1,
+      isLatest: index === assistantMessages.length - 1
+    }))
+  }, [messages])
+  
   return {
     messages,
     lastMessage,
@@ -418,6 +489,7 @@ export function useConversationMessages() {
     getMessagesByAgent,
     getMessagesByRole,
     searchMessages,
+    getConversationFlow,
   }
 }
 
