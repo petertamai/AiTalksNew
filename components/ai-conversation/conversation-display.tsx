@@ -15,7 +15,8 @@ import {
   MoreHorizontal,
   Copy,
   Download,
-  Mic
+  Mic,
+  PlayCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,6 +34,11 @@ interface ConversationDisplayProps {
   hasAudio?: boolean
   isSharedView?: boolean
   className?: string
+  // NEW: Playback highlighting support
+  playbackHighlightedMessage?: {
+    messageIndex: number
+    agent: 'ai1' | 'ai2' | null
+  }
 }
 
 interface MessageItemProps {
@@ -41,9 +47,18 @@ interface MessageItemProps {
   isActive?: boolean
   isSpeaking?: boolean
   isTyping?: boolean
+  // NEW: Playback highlighting
+  isPlaybackHighlighted?: boolean
 }
 
-function MessageItem({ message, index, isActive, isSpeaking, isTyping }: MessageItemProps) {
+function MessageItem({ 
+  message, 
+  index, 
+  isActive, 
+  isSpeaking, 
+  isTyping, 
+  isPlaybackHighlighted = false 
+}: MessageItemProps) {
   const [isHovered, setIsHovered] = React.useState(false)
 
   const getMessageStyles = () => {
@@ -122,14 +137,17 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
         "hover:shadow-sm",
         styles.container,
         styles.darkContainer,
+        // Live speaking (during conversation)
         isSpeaking && "ring-2 ring-primary/50 shadow-lg transform scale-[1.02]",
+        // Playback highlighting (during audio replay)
+        isPlaybackHighlighted && "ring-2 ring-green-500/50 shadow-lg bg-green-50/20 transform scale-[1.01]",
         isActive && "ring-2 ring-primary"
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-message-index={index}
     >
-      {/* Speaking Indicator with Animation - ONLY when actually speaking */}
+      {/* Live Speaking Indicator */}
       {isSpeaking && (
         <div className="absolute -top-3 left-4 flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs shadow-lg z-10 animate-pulse">
           <div className="flex gap-1">
@@ -142,12 +160,21 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
         </div>
       )}
 
+      {/* Playback Highlighting Indicator */}
+      {isPlaybackHighlighted && !isSpeaking && (
+        <div className="absolute -top-3 left-4 flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-full text-xs shadow-lg z-10 animate-pulse">
+          <PlayCircle className="h-3 w-3" />
+          <span className="font-medium">Playing Audio...</span>
+        </div>
+      )}
+
       <div className="flex items-start gap-3">
-        {/* Avatar with Speaking Animation */}
+        {/* Avatar with Animation */}
         <div className={cn(
           "w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0 transition-all duration-200",
           styles.avatar,
-          isSpeaking && "ring-2 ring-primary/50 ring-offset-2 animate-pulse"
+          isSpeaking && "ring-2 ring-primary/50 ring-offset-2 animate-pulse",
+          isPlaybackHighlighted && !isSpeaking && "ring-2 ring-green-500/50 ring-offset-2 animate-pulse"
         )}>
           <div className={styles.icon}>
             {getAgentIcon()}
@@ -172,11 +199,17 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
                   {formatTimestamp(message.timestamp)}
                 </span>
               )}
-              {/* REMOVED: Redundant "Playing" badge since we already have speaking animation */}
+              {/* Show playback status */}
+              {isPlaybackHighlighted && (
+                <Badge variant="default" className="text-xs bg-green-500/20 text-green-700 border-green-500/30">
+                  <Volume2 className="h-3 w-3 mr-1" />
+                  Audio Playing
+                </Badge>
+              )}
             </div>
             
             {/* Actions */}
-            {(isHovered || isSpeaking) && (
+            {(isHovered || isSpeaking || isPlaybackHighlighted) && (
               <div className="flex items-center gap-1 opacity-60 hover:opacity-100">
                 <Button
                   variant="ghost"
@@ -190,11 +223,12 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
             )}
           </div>
 
-          {/* Message Content with Audio Coordination Visual Effect */}
+          {/* Message Content with Playback Visual Effect */}
           <div className="prose prose-sm max-w-none">
             <p className={cn(
               "text-sm leading-relaxed whitespace-pre-wrap break-words transition-all duration-300",
-              isSpeaking && "text-primary font-medium"
+              isSpeaking && "text-primary font-medium",
+              isPlaybackHighlighted && !isSpeaking && "text-green-700 font-medium"
             )}>
               {message.content}
             </p>
@@ -233,7 +267,8 @@ export function ConversationDisplay({
   onPlayAudio, 
   hasAudio = false,
   isSharedView = false,
-  className
+  className,
+  playbackHighlightedMessage
 }: ConversationDisplayProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
@@ -246,7 +281,22 @@ export function ConversationDisplay({
     scrollToBottom()
   }, [state.messages, scrollToBottom])
 
+  // Auto-scroll to currently playing message during playback
+  React.useEffect(() => {
+    if (playbackHighlightedMessage && playbackHighlightedMessage.messageIndex >= 0) {
+      const messageElement = document.querySelector(`[data-message-index="${playbackHighlightedMessage.messageIndex}"]`)
+      if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }
+  }, [playbackHighlightedMessage])
+
   const getStatusText = () => {
+    // Playback status takes priority
+    if (playbackHighlightedMessage && playbackHighlightedMessage.messageIndex >= 0) {
+      return `Playing message ${playbackHighlightedMessage.messageIndex + 1}`
+    }
+    
     if (state.speakingState.ai1) return 'AI-1 is speaking'
     if (state.speakingState.ai2) return 'AI-2 is speaking'
     if (state.typingIndicator.ai1) return 'AI-1 is thinking'
@@ -257,6 +307,9 @@ export function ConversationDisplay({
   }
 
   const getStatusVariant = () => {
+    // Playback status
+    if (playbackHighlightedMessage && playbackHighlightedMessage.messageIndex >= 0) return 'default'
+    
     if (state.speakingState.ai1 || state.speakingState.ai2) return 'default'
     if (state.typingIndicator.ai1 || state.typingIndicator.ai2) return 'secondary'
     if (state.isActive) return 'default'
@@ -264,16 +317,15 @@ export function ConversationDisplay({
   }
 
   const hasAnyActivity = state.speakingState.ai1 || state.speakingState.ai2 || 
-                        state.typingIndicator.ai1 || state.typingIndicator.ai2
+                        state.typingIndicator.ai1 || state.typingIndicator.ai2 ||
+                        (playbackHighlightedMessage && playbackHighlightedMessage.messageIndex >= 0)
 
-  // FIXED: Determine which message is currently speaking
-  // Only the LAST message from the currently speaking AI should show as speaking
+  // Determine which message is currently speaking (live conversation)
   const getCurrentlySpeakingMessageIndex = () => {
     if (!state.speakingState.ai1 && !state.speakingState.ai2) return -1
     
     const speakingAgent = state.speakingState.ai1 ? 'ai1' : 'ai2'
     
-    // Find the LAST message from the currently speaking agent
     for (let i = state.messages.length - 1; i >= 0; i--) {
       if (state.messages[i].agent === speakingAgent) {
         return i
@@ -299,7 +351,8 @@ export function ConversationDisplay({
               <p className="text-sm text-muted-foreground">
                 {state.messages.length} messages
                 {hasAudio && ` • Audio available`}
-                {(state.speakingState.ai1 || state.speakingState.ai2) && ' • Audio coordinated'}
+                {(state.speakingState.ai1 || state.speakingState.ai2) && ' • Live audio'}
+                {(playbackHighlightedMessage && playbackHighlightedMessage.messageIndex >= 0) && ' • Playing back'}
               </p>
             </div>
           </div>
@@ -369,8 +422,13 @@ export function ConversationDisplay({
                     key={message.id}
                     message={message}
                     index={index}
-                    // FIXED: Only show speaking for the LAST message from currently speaking agent
+                    // Live speaking (during conversation)
                     isSpeaking={index === currentlySpeakingMessageIndex}
+                    // Playback highlighting (during audio replay)
+                    isPlaybackHighlighted={
+                      playbackHighlightedMessage?.messageIndex === index && 
+                      playbackHighlightedMessage?.agent === message.agent
+                    }
                   />
                 ))}
 

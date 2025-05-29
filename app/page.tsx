@@ -1,9 +1,9 @@
-// app/page.tsx
+// app/page.tsx - FIXED AUDIO PLAYER WITH BETTER ERROR HANDLING
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Settings, Bug, Sparkles, Zap, BrainCircuit, RotateCcw } from 'lucide-react'
+import { Settings, Bug, Sparkles, Zap, BrainCircuit, RotateCcw, Play, Pause, Square, SkipForward, SkipBack } from 'lucide-react'
 import { ConversationProvider, useConversation } from '@/contexts/ConversationContext'
 import { ConversationDisplay } from '@/components/ai-conversation/conversation-display'
 import { ConversationFlow } from '@/components/ai-conversation/conversation-flow'
@@ -25,6 +25,346 @@ import {
   DEFAULT_CONVERSATION_DIRECTION
 } from '@/lib/utils'
 import { toast } from 'sonner'
+
+// Audio Player Types
+interface AudioPlayerState {
+  isPlaying: boolean
+  isPaused: boolean
+  currentIndex: number
+  currentMessageIndex: number
+  totalFiles: number
+  currentAgent: 'ai1' | 'ai2' | null
+  progress: number
+  currentTime: number
+  duration: number
+}
+
+// FIXED: Robust Audio Player Class with Better Error Handling
+class ConversationAudioPlayer {
+  private audioFiles: Array<{filename: string, messageIndex: number, agent: 'ai1' | 'ai2', url: string}> = []
+  private currentAudio: HTMLAudioElement | null = null
+  private currentIndex = 0
+  private isPlaying = false
+  private isPaused = false
+  private onStateChange: (state: AudioPlayerState) => void
+  private onMessageHighlight: (messageIndex: number, agent: 'ai1' | 'ai2' | null) => void
+  private errorCount = 0
+  private maxErrors = 5 // Prevent infinite loops
+  private skipAfterError = false
+
+  constructor(
+    onStateChange: (state: AudioPlayerState) => void,
+    onMessageHighlight: (messageIndex: number, agent: 'ai1' | 'ai2' | null) => void
+  ) {
+    this.onStateChange = onStateChange
+    this.onMessageHighlight = onMessageHighlight
+  }
+
+  async loadConversation(conversationId: string, messages: any[]): Promise<boolean> {
+    try {
+      console.log('🎵 Loading audio files for conversation:', conversationId)
+      
+      const response = await fetch(`/api/conversations/audio?conversation_id=${conversationId}`)
+      const data = await response.json()
+      
+      if (!data.success || !data.audioFiles || data.audioFiles.length === 0) {
+        console.log('❌ No audio files found for conversation')
+        return false
+      }
+
+      // Parse and sort audio files, match with message data
+      this.audioFiles = data.audioFiles.map((filename: string) => {
+        const indexMatch = filename.match(/message_(\d+)\.mp3/)
+        const messageIndex = indexMatch ? parseInt(indexMatch[1]) : 0
+        
+        // Get agent from actual message data
+        const message = messages[messageIndex]
+        const agent = message?.agent || 'ai1'
+        
+        return {
+          filename,
+          messageIndex,
+          agent,
+          url: `/conversations/${conversationId}/audio/${filename}`
+        }
+      }).sort((a: any, b: any) => a.messageIndex - b.messageIndex)
+
+      console.log('✅ Loaded audio files:', this.audioFiles.length, this.audioFiles)
+      
+      // Reset error tracking
+      this.errorCount = 0
+      this.skipAfterError = false
+      
+      this.updateState()
+      return true
+    } catch (error) {
+      console.error('❌ Failed to load conversation audio:', error)
+      return false
+    }
+  }
+
+  private updateState() {
+    const currentFile = this.audioFiles[this.currentIndex]
+    const state: AudioPlayerState = {
+      isPlaying: this.isPlaying,
+      isPaused: this.isPaused,
+      currentIndex: this.currentIndex,
+      currentMessageIndex: currentFile?.messageIndex ?? -1,
+      totalFiles: this.audioFiles.length,
+      currentAgent: currentFile?.agent ?? null,
+      progress: 0,
+      currentTime: 0,
+      duration: 0
+    }
+
+    if (this.currentAudio && this.currentAudio.duration) {
+      state.progress = this.currentAudio.duration > 0 
+        ? (this.currentAudio.currentTime / this.currentAudio.duration) * 100 
+        : 0
+      state.currentTime = this.currentAudio.currentTime
+      state.duration = this.currentAudio.duration || 0
+    }
+
+    this.onStateChange(state)
+  }
+
+  async play(): Promise<void> {
+    if (this.audioFiles.length === 0) {
+      console.log('❌ No audio files to play')
+      toast.error('No Audio Files', {
+        description: 'No audio files available to play.'
+      })
+      return
+    }
+
+    if (this.isPaused && this.currentAudio) {
+      try {
+        await this.currentAudio.play()
+        this.isPaused = false
+        this.isPlaying = true
+        this.updateState()
+        console.log('▶️ Resumed audio playback')
+        toast.success('Audio Resumed')
+      } catch (error) {
+        console.error('❌ Failed to resume audio:', error)
+        toast.error('Resume Failed', {
+          description: 'Failed to resume audio playback.'
+        })
+      }
+      return
+    }
+
+    // Reset error tracking when starting fresh
+    this.errorCount = 0
+    this.skipAfterError = false
+    this.isPlaying = true
+    this.isPaused = false
+    
+    await this.playCurrentFile()
+  }
+
+  private async playCurrentFile(): Promise<void> {
+    // FIXED: Prevent infinite loops with error limit
+    if (this.errorCount >= this.maxErrors) {
+      console.error('❌ Too many errors, stopping playback')
+      toast.error('Audio Playback Failed', {
+        description: 'Too many audio errors encountered. Playback stopped.'
+      })
+      this.stop()
+      return
+    }
+
+    if (this.currentIndex >= this.audioFiles.length) {
+      console.log('✅ Conversation playback completed')
+      toast.success('Playback Complete', {
+        description: 'Finished playing all audio messages.'
+      })
+      this.stop()
+      return
+    }
+
+    const currentFile = this.audioFiles[this.currentIndex]
+    console.log(`🎵 Playing file ${this.currentIndex + 1}/${this.audioFiles.length}:`, currentFile.filename)
+
+    // Highlight current message
+    this.onMessageHighlight(currentFile.messageIndex, currentFile.agent)
+
+    // Clean up previous audio
+    if (this.currentAudio) {
+      this.currentAudio.pause()
+      this.currentAudio.src = ''
+      this.currentAudio.onended = null
+      this.currentAudio.onerror = null
+      this.currentAudio.ontimeupdate = null
+      this.currentAudio.onloadedmetadata = null
+    }
+
+    // Create new audio element
+    this.currentAudio = new Audio()
+    
+    // FIXED: Better error handling with detailed logging
+    this.currentAudio.onerror = (event) => {
+      this.errorCount++
+      console.error(`❌ Audio error for ${currentFile.filename} (Error #${this.errorCount}):`, event)
+      console.error('❌ Audio error details:', {
+        error: this.currentAudio?.error,
+        networkState: this.currentAudio?.networkState,
+        readyState: this.currentAudio?.readyState,
+        src: this.currentAudio?.src
+      })
+      
+      // Clear highlight for failed message
+      this.onMessageHighlight(-1, null)
+      
+      // Move to next file and continue if we haven't hit error limit
+      this.currentIndex++
+      
+      if (this.isPlaying && this.currentIndex < this.audioFiles.length && this.errorCount < this.maxErrors) {
+        console.log(`⏭️ Skipping to next file due to error...`)
+        setTimeout(() => {
+          if (this.isPlaying) {
+            this.playCurrentFile()
+          }
+        }, 500) // Brief delay before trying next file
+      } else {
+        console.error('❌ Stopping playback due to errors or end of files')
+        this.stop()
+      }
+    }
+
+    this.currentAudio.onended = () => {
+      console.log(`✅ Completed playing: ${currentFile.filename}`)
+      
+      // Clear highlight for completed message
+      this.onMessageHighlight(-1, null)
+      
+      // Move to next file
+      this.currentIndex++
+      
+      if (this.isPlaying && this.currentIndex < this.audioFiles.length) {
+        // Brief pause between files for natural flow
+        setTimeout(() => {
+          if (this.isPlaying) {
+            this.playCurrentFile()
+          }
+        }, 800)
+      } else {
+        console.log('🎉 Conversation playback completed!')
+        this.stop()
+      }
+    }
+    
+    this.currentAudio.ontimeupdate = () => this.updateState()
+    this.currentAudio.onloadedmetadata = () => this.updateState()
+
+    // FIXED: Add load event to ensure file is ready
+    this.currentAudio.oncanplaythrough = () => {
+      console.log(`✅ Audio file ready: ${currentFile.filename}`)
+    }
+
+    // Set source and load
+    this.currentAudio.src = currentFile.url
+    this.currentAudio.load()
+
+    try {
+      // FIXED: Add timeout to prevent hanging
+      const playPromise = this.currentAudio.play()
+      
+      // Set a timeout in case play() hangs
+      const playTimeout = setTimeout(() => {
+        if (this.currentAudio && this.currentAudio.paused) {
+          console.error(`⏱️ Audio play timeout for ${currentFile.filename}`)
+          this.currentAudio.dispatchEvent(new Event('error'))
+        }
+      }, 10000) // 10 second timeout
+      
+      await playPromise
+      clearTimeout(playTimeout)
+      
+      this.updateState()
+      console.log(`▶️ Started playing: ${currentFile.filename}`)
+      
+    } catch (error) {
+      console.error(`❌ Failed to play ${currentFile.filename}:`, error)
+      
+      // Increment error count and try next file
+      this.errorCount++
+      this.currentIndex++
+      
+      if (this.isPlaying && this.currentIndex < this.audioFiles.length && this.errorCount < this.maxErrors) {
+        setTimeout(() => {
+          if (this.isPlaying) {
+            this.playCurrentFile()
+          }
+        }, 500)
+      } else {
+        this.stop()
+      }
+    }
+  }
+
+  pause(): void {
+    if (this.currentAudio && this.isPlaying) {
+      this.currentAudio.pause()
+      this.isPaused = true
+      this.isPlaying = false
+      this.updateState()
+      console.log('⏸️ Audio playback paused')
+      toast.info('Audio Paused')
+    }
+  }
+
+  stop(): void {
+    if (this.currentAudio) {
+      this.currentAudio.pause()
+      this.currentAudio.src = ''
+      this.currentAudio.onended = null
+      this.currentAudio.onerror = null
+      this.currentAudio.ontimeupdate = null
+      this.currentAudio.onloadedmetadata = null
+    }
+    
+    this.isPlaying = false
+    this.isPaused = false
+    this.currentIndex = 0
+    this.errorCount = 0 // Reset error count
+    
+    // Clear any message highlighting
+    this.onMessageHighlight(-1, null)
+    
+    this.updateState()
+    console.log('⏹️ Audio playback stopped')
+  }
+
+  next(): void {
+    if (this.currentIndex < this.audioFiles.length - 1) {
+      this.currentIndex++
+      if (this.isPlaying) {
+        this.playCurrentFile()
+      } else {
+        this.updateState()
+      }
+    }
+  }
+
+  previous(): void {
+    if (this.currentIndex > 0) {
+      this.currentIndex--
+      if (this.isPlaying) {
+        this.playCurrentFile()
+      } else {
+        this.updateState()
+      }
+    }
+  }
+
+  destroy(): void {
+    this.stop()
+    this.audioFiles = []
+    this.currentAudio = null
+    this.errorCount = 0
+  }
+}
 
 function MainApp() {
   const { 
@@ -50,9 +390,24 @@ function MainApp() {
   const [isClientSide, setIsClientSide] = useState(false)
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   
-  // Use useRef to track conversation state to avoid closure issues
+  // Audio Player State
+  const [audioPlayerState, setAudioPlayerState] = useState<AudioPlayerState>({
+    isPlaying: false,
+    isPaused: false,
+    currentIndex: 0,
+    currentMessageIndex: -1,
+    totalFiles: 0,
+    currentAgent: null,
+    progress: 0,
+    currentTime: 0,
+    duration: 0
+  })
+  const [playbackHighlightedMessage, setPlaybackHighlightedMessage] = useState<{messageIndex: number, agent: 'ai1' | 'ai2' | null}>({messageIndex: -1, agent: null})
+  
+  const activeConversationIdRef = useRef<string>('')
   const isConversationActiveRef = useRef(false)
   const currentMessagesRef = useRef<typeof state.messages>([])
+  const audioPlayerRef = useRef<ConversationAudioPlayer | null>(null)
   
   // Initialize audio elements only on client side to avoid SSR issues
   const audioElements = useRef<{ [key: string]: HTMLAudioElement }>({})
@@ -72,11 +427,32 @@ function MainApp() {
     }
   }, [])
 
+  // Initialize audio player
+  useEffect(() => {
+    if (isClientSide && !audioPlayerRef.current) {
+      audioPlayerRef.current = new ConversationAudioPlayer(
+        (state) => setAudioPlayerState(state),
+        (messageIndex, agent) => setPlaybackHighlightedMessage({messageIndex, agent})
+      )
+      console.log('🎵 Audio player initialized')
+    }
+
+    return () => {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.destroy()
+        audioPlayerRef.current = null
+      }
+    }
+  }, [isClientSide])
+
   // Load settings from localStorage on client mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsClientSide(true)
-      setConversationId(generateId())
+      
+      const initialConversationId = generateId()
+      setConversationId(initialConversationId)
+      activeConversationIdRef.current = initialConversationId
       
       // Initialize audio elements
       audioElements.current = {
@@ -100,7 +476,8 @@ function MainApp() {
           ai1: savedSettings.ai1Config.name,
           ai2: savedSettings.ai2Config.name,
           startingMessage: savedSettings.startingMessage.substring(0, 30) + '...',
-          direction: savedSettings.conversationDirection
+          direction: savedSettings.conversationDirection,
+          conversationId: initialConversationId
         })
         
         toast.success('Settings Loaded', {
@@ -161,7 +538,7 @@ function MainApp() {
   useEffect(() => {
     isConversationActiveRef.current = state.isActive
     currentMessagesRef.current = state.messages
-    log(`🔄 State sync: isActive = ${state.isActive}, messageCount = ${state.messages.length}`)
+    log(`🔄 State sync: isActive = ${state.isActive}, messageCount = ${state.messages.length}, activeConversationId = ${activeConversationIdRef.current}`)
   }, [state.isActive, state.messages])
 
   const log = useCallback((message: string, data?: any) => {
@@ -176,16 +553,15 @@ function MainApp() {
   const getCurrentConversationHistory = useCallback(() => {
     const messages = currentMessagesRef.current
     return messages
-      .filter(msg => msg.role !== 'system') // Exclude system messages from AI context
+      .filter(msg => msg.role !== 'system')
       .map(msg => ({
         role: msg.role === 'human' ? 'user' : 'assistant',
         content: msg.content,
-        // Include agent information in content for better context
         ...(msg.agent && msg.role === 'assistant' ? {
           name: msg.agent === 'ai1' ? ai1Config.name : ai2Config.name
         } : {})
       }))
-      .slice(-20) // Keep last 20 messages for context (adjust as needed)
+      .slice(-20)
   }, [ai1Config.name, ai2Config.name])
 
   const getAIResponse = async (
@@ -196,7 +572,6 @@ function MainApp() {
     
     log(`🤖 Getting ${aiId} (${config.name}) response using model: ${config.model}`)
     
-    // Get current conversation history
     const conversationHistory = getCurrentConversationHistory()
     
     log(`📚 Conversation history for ${aiId}:`, {
@@ -215,12 +590,6 @@ function MainApp() {
         content: prompt
       }
     ]
-
-    log(`🔍 Full context for ${aiId}:`, {
-      systemPrompt: messages[0].content.substring(0, 100) + '...',
-      historyCount: conversationHistory.length,
-      newPrompt: prompt.substring(0, 100) + '...'
-    })
 
     const response = await fetch('/api/openrouter/chat', {
       method: 'POST',
@@ -274,7 +643,8 @@ function MainApp() {
       return Promise.resolve()
     }
     
-    log(`🎵 Generating TTS for ${aiId}: "${text.substring(0, 50)}..."`)
+    const currentConversationId = activeConversationIdRef.current
+    log(`🎵 Generating TTS for ${aiId}: "${text.substring(0, 50)}..." with conversationId: ${currentConversationId}`)
     
     try {
       setSpeakingState(aiId, true)
@@ -289,7 +659,7 @@ function MainApp() {
         body: JSON.stringify({
           voice: config.tts.voice,
           input: text,
-          conversation_id: conversationId,
+          conversation_id: currentConversationId,
           message_index: messageIndex,
         }),
       })
@@ -299,17 +669,14 @@ function MainApp() {
         throw new Error(errorData.error || `TTS API error: ${response.status}`)
       }
       
-      // Get audio blob
       const audioBlob = await response.blob()
       const audioUrl = URL.createObjectURL(audioBlob)
       
-      log(`✅ TTS audio generated for ${aiId}, size: ${audioBlob.size} bytes`)
+      log(`✅ TTS audio generated for ${aiId}, size: ${audioBlob.size} bytes, saved to conversation: ${currentConversationId}`)
       
-      // Play audio if client-side
       if (isClientSide && audioElements.current[aiId]) {
         const audio = audioElements.current[aiId]
         
-        // Stop any existing audio for this AI first
         if (!audio.paused) {
           audio.pause()
           audio.currentTime = 0
@@ -523,6 +890,7 @@ function MainApp() {
       
       const newConversationId = generateId()
       setConversationId(newConversationId)
+      activeConversationIdRef.current = newConversationId
       setHasAudio(false)
       
       log('🎬 Initializing new conversation', {
@@ -533,7 +901,6 @@ function MainApp() {
       isConversationActiveRef.current = true
       startConversation()
 
-      // Update conversation direction and save it
       setConversationDirection(direction)
 
       let sender: 'ai1' | 'ai2'
@@ -557,7 +924,7 @@ function MainApp() {
         model: sender === 'ai1' ? ai1Config.model : ai2Config.model,
       })
 
-      log(`🎵 Generating TTS for initial message from ${sender}`)
+      log(`🎵 Generating TTS for initial message from ${sender} with conversationId: ${newConversationId}`)
       await speakText(sender, message, initialMessageIndex)
 
       toast.success('AI Conversation Started', {
@@ -586,6 +953,11 @@ function MainApp() {
     log('🛑 Stopping conversation manually')
     isConversationActiveRef.current = false
     
+    // Stop audio player if active
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.stop()
+    }
+    
     Object.keys(audioElements.current).forEach(aiId => {
       cleanupAudio(aiId)
       log(`🔇 Audio stopped and cleaned for ${aiId}`)
@@ -605,7 +977,6 @@ function MainApp() {
     try {
       resetConversationSettings()
       
-      // Reset state to defaults
       setAI1Config(DEFAULT_AI1_CONFIG)
       setAI2Config(DEFAULT_AI2_CONFIG)
       setStartingMessage(DEFAULT_STARTING_MESSAGE)
@@ -634,7 +1005,7 @@ function MainApp() {
 
     try {
       const conversationData = {
-        id: conversationId,
+        id: activeConversationIdRef.current,
         settings: {
           messageDirection: conversationDirection,
           models: {
@@ -674,7 +1045,7 @@ function MainApp() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          conversation_id: conversationId,
+          conversation_id: activeConversationIdRef.current,
           data: conversationData,
         }),
       })
@@ -726,32 +1097,65 @@ function MainApp() {
     }
   }
 
+  // FIXED: Sequential Audio Playback with Better Error Handling
   const handlePlayAudio = async () => {
-    try {
-      const response = await fetch(`/api/conversations/audio?conversation_id=${conversationId}`)
-      const data = await response.json()
-      
-      if (data.success && data.audioFiles && data.audioFiles.length > 0) {
-        toast.success('Audio Playback', {
-          description: `Found ${data.audioFiles.length} audio files`,
-          duration: 2000
-        })
-        
-        const audioUrl = `/conversations/${conversationId}/audio/${data.audioFiles[0]}`
-        
-        if (isClientSide && typeof window !== 'undefined') {
-          const audio = new Audio(audioUrl)
-          audio.play().catch(console.error)
-        }
-      } else {
-        toast.warning('No Audio Available', {
-          description: 'No audio files available for this conversation.'
-        })
-      }
-    } catch (error) {
-      toast.error('Audio Error', {
-        description: 'Error loading audio files.'
+    const currentConversationId = activeConversationIdRef.current
+    
+    if (!audioPlayerRef.current) {
+      toast.error('Audio Player Not Ready', {
+        description: 'Audio player is not initialized.'
       })
+      return
+    }
+
+    log(`🎵 Starting sequential audio playback for conversation: ${currentConversationId}`)
+    
+    try {
+      const success = await audioPlayerRef.current.loadConversation(currentConversationId, state.messages)
+      
+      if (!success) {
+        toast.warning('No Audio Available', {
+          description: `No audio files available for this conversation.`
+        })
+        return
+      }
+
+      await audioPlayerRef.current.play()
+      
+      toast.success('Conversation Playback Started', {
+        description: `Playing ${audioPlayerState.totalFiles} audio messages sequentially`,
+        duration: 3000
+      })
+      
+    } catch (error) {
+      log(`❌ Error starting audio playback:`, error)
+      toast.error('Audio Playback Error', {
+        description: 'Failed to start conversation playback.'
+      })
+    }
+  }
+
+  const handlePauseAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause()
+    }
+  }
+
+  const handleStopAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.stop()
+    }
+  }
+
+  const handleNextAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.next()
+    }
+  }
+
+  const handlePreviousAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.previous()
     }
   }
 
@@ -787,6 +1191,35 @@ function MainApp() {
           </div>
           
           <div className="flex items-center gap-2">
+            {/* FIXED: Audio Player Controls with Better Error Display */}
+            {hasAudio && state.messages.length > 0 && (
+              <div className="flex items-center gap-1 border rounded-lg p-1">
+                {!audioPlayerState.isPlaying ? (
+                  <Button variant="ghost" size="sm" onClick={handlePlayAudio}>
+                    <Play className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={handlePauseAudio}>
+                    <Pause className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleStopAudio} disabled={!audioPlayerState.isPlaying && !audioPlayerState.isPaused}>
+                  <Square className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handlePreviousAudio} disabled={audioPlayerState.currentIndex <= 0}>
+                  <SkipBack className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleNextAudio} disabled={audioPlayerState.currentIndex >= audioPlayerState.totalFiles - 1}>
+                  <SkipForward className="h-4 w-4" />
+                </Button>
+                {audioPlayerState.totalFiles > 0 && (
+                  <span className="text-xs text-muted-foreground px-2">
+                    {audioPlayerState.currentIndex + 1}/{audioPlayerState.totalFiles}
+                  </span>
+                )}
+              </div>
+            )}
+            
             <Button
               variant="outline"
               size="sm"
@@ -825,7 +1258,7 @@ function MainApp() {
         <div className="bg-black/95 text-green-400 p-4 text-xs font-mono max-h-48 overflow-y-auto border-b flex-shrink-0">
           <div className="flex items-center gap-2 mb-2 text-green-300">
             <Zap className="h-3 w-3" />
-            <span>Debug Console</span>
+            <span>Debug Console - Active: {activeConversationIdRef.current} | Playback: {playbackHighlightedMessage.messageIndex} | Errors: {audioPlayerRef.current ? 'tracked' : 'none'}</span>
           </div>
           {debugLogs.map((log, index) => (
             <div key={index} className="opacity-80 hover:opacity-100 transition-opacity">
@@ -882,6 +1315,8 @@ function MainApp() {
               hasAudio={hasAudio}
               isSharedView={false}
               className="flex-1"
+              // Pass playback highlighting state
+              playbackHighlightedMessage={playbackHighlightedMessage}
             />
           </div>
         </div>
