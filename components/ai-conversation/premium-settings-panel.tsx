@@ -1,4 +1,4 @@
-// components/ai-conversation/premium-settings-panel.tsx - Height Fix + LocalStorage
+// components/ai-conversation/premium-settings-panel.tsx - Added Common System Instruction
 "use client"
 
 import * as React from "react"
@@ -19,7 +19,9 @@ import {
   Save,
   Download,
   Upload,
-  RotateCcw
+  RotateCcw,
+  MessageCircle,
+  Bot
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -32,6 +34,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { AIAgent, OpenRouterModel } from "@/types"
 import { ModelSelector } from "./advanced-model-selector"
 import { AIAgentCard } from "./ai-agent-card"
@@ -50,6 +53,8 @@ interface PremiumSettingsPanelProps {
   ai2Config: AIAgent
   onAI1ConfigChange: (config: Partial<AIAgent>) => void
   onAI2ConfigChange: (config: Partial<AIAgent>) => void
+  commonSystemInstruction: string
+  onCommonSystemInstructionChange: (instruction: string) => void
   isSharedView?: boolean
 }
 
@@ -211,6 +216,8 @@ export function PremiumSettingsPanel({
   ai2Config,
   onAI1ConfigChange,
   onAI2ConfigChange,
+  commonSystemInstruction,
+  onCommonSystemInstructionChange,
   isSharedView = false
 }: PremiumSettingsPanelProps) {
   // Models and API states
@@ -707,6 +714,57 @@ export function PremiumSettingsPanel({
                         />
                       </div>
                     </div>
+
+                    {/* NEW: Common System Instruction Section */}
+                    {!isSharedView && (
+                      <>
+                        <Separator />
+                        
+                        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
+                                <MessageCircle className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <CardTitle className="text-lg">Common System Instruction for Both AI</CardTitle>
+                                <p className="text-sm text-muted-foreground">
+                                  This instruction is added to both AI agents' system prompts during conversations
+                                </p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          
+                          <CardContent className="space-y-4">
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium">System Instruction</Label>
+                              <Textarea
+                                value={commonSystemInstruction}
+                                onChange={(e) => onCommonSystemInstructionChange(e.target.value)}
+                                placeholder="Enter instructions that will be applied to both AI agents during conversations..."
+                                className="min-h-[120px] resize-none text-sm"
+                                disabled={isSharedView}
+                              />
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Shared by both AI agents during conversations</span>
+                                <span>{commonSystemInstruction.length} characters</span>
+                              </div>
+                            </div>
+                            
+                            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Bot className="h-4 w-4" />
+                                <span className="font-medium">How it works</span>
+                              </div>
+                              <p>
+                                This instruction is automatically appended to each AI's individual system prompt 
+                                during conversations, ensuring consistent behaviour across both agents.
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
 
                     {!hasValidOpenRouterKey && !isSharedView && (
                       <Alert>

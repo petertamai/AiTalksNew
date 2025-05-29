@@ -184,7 +184,7 @@ export function AIAgentCard({
       "hover:shadow-lg hover:shadow-primary/5",
       `bg-gradient-to-br ${colors.primary}`,
       colors.border,
-      "h-[80vh] flex flex-col",
+      "h-[60vh] flex flex-col",
       className
     )}>
       {/* Animated background */}

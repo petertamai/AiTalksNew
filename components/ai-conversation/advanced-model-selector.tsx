@@ -31,6 +31,8 @@ export function ModelSelector({
 }: ModelSelectorProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const triggerRef = React.useRef<HTMLDivElement>(null)
+  const [dropdownPosition, setDropdownPosition] = React.useState({ top: 0, left: 0, width: 0 })
 
   // Debug logging
   React.useEffect(() => {
@@ -43,6 +45,18 @@ export function ModelSelector({
       searchQuery
     })
   }, [models, value, isLoading, disabled, agentName, open, searchQuery])
+
+  // Calculate dropdown position when opening
+  React.useEffect(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      })
+    }
+  }, [open])
 
   // Filter models based on search
   const filteredModels = React.useMemo(() => {
@@ -113,7 +127,7 @@ export function ModelSelector({
   }
 
   return (
-    <div className={cn("grid gap-2", className)}>
+    <div className={cn("grid gap-2 relative", className)}>
       {agentName && (
         <div className="flex items-center gap-2 mb-1">
           <Sparkles className="h-4 w-4 text-primary" />
@@ -123,48 +137,67 @@ export function ModelSelector({
       
       <div className="relative">
         {/* Trigger Button */}
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          onClick={handleToggle}
-          className={cn(
-            "w-full justify-between h-auto min-h-[2.5rem] p-3",
-            "hover:bg-accent/50 focus:ring-2 focus:ring-primary/20",
-            !value && "text-muted-foreground"
-          )}
-          disabled={disabled || isLoading}
-        >
-          <div className="flex items-center gap-2 flex-1 text-left">
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : selectedModel ? (
-              <>
-                <span className="text-lg">
-                  {getProviderIcon(selectedModel.id.split('/')[0])}
-                </span>
-                <div className="flex flex-col gap-1 flex-1 min-w-0">
-                  <span className="font-medium truncate">{selectedModel.id}</span>
-                  {selectedModel.name && selectedModel.name !== selectedModel.id && (
-                    <span className="text-xs text-muted-foreground truncate">
-                      {selectedModel.name}
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <Search className="h-4 w-4" />
-                <span>{placeholder}</span>
-              </>
+        <div ref={triggerRef}>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            onClick={handleToggle}
+            className={cn(
+              "w-full justify-between h-auto min-h-[2.5rem] p-3",
+              "hover:bg-accent/50 focus:ring-2 focus:ring-primary/20",
+              !value && "text-muted-foreground"
             )}
-          </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-        
-        {/* Dropdown Content */}
-        {open && (
-          <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground border rounded-md shadow-lg">
+            disabled={disabled || isLoading}
+          >
+            <div className="flex items-center gap-2 flex-1 text-left">
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : selectedModel ? (
+                <>
+                  <span className="text-lg">
+                    {getProviderIcon(selectedModel.id.split('/')[0])}
+                  </span>
+                  <div className="flex flex-col gap-1 flex-1 min-w-0">
+                    <span className="font-medium truncate">{selectedModel.id}</span>
+                    {selectedModel.name && selectedModel.name !== selectedModel.id && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        {selectedModel.name}
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4" />
+                  <span>{placeholder}</span>
+                </>
+              )}
+            </div>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </div>
+      </div>
+      
+      {/* Fixed Position Dropdown Portal */}
+      {open && (
+        <>
+          {/* Click outside to close */}
+          <div 
+            className="fixed inset-0 z-[150]" 
+            onClick={() => setOpen(false)}
+          />
+          
+          {/* Dropdown Content - Fixed positioned */}
+          <div 
+            className="fixed z-[200] bg-popover text-popover-foreground border rounded-md shadow-lg"
+            style={{
+              top: dropdownPosition.top + 4,
+              left: dropdownPosition.left,
+              width: dropdownPosition.width,
+              maxHeight: '50vh'
+            }}
+          >
             {/* Search Input */}
             <div className="flex items-center border-b px-3 py-2">
               <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -179,7 +212,7 @@ export function ModelSelector({
             </div>
             
             {/* Models List */}
-            <div className="max-h-[400px] overflow-y-auto p-2">
+            <div className="max-h-[40vh] overflow-y-auto p-2">
               {Object.keys(groupedModels).length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   {isLoading ? "Loading models..." : 
@@ -246,15 +279,7 @@ export function ModelSelector({
               )}
             </div>
           </div>
-        )}
-      </div>
-      
-      {/* Click outside to close */}
-      {open && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setOpen(false)}
-        />
+        </>
       )}
       
       {/* Selected Model Info */}

@@ -1,4 +1,4 @@
-// lib/utils.ts - Updated with better default names and enhanced name handling
+// lib/utils.ts - Updated with common system instruction support
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { AIAgent, ConversationDirection } from "@/types"
@@ -145,6 +145,7 @@ export interface ConversationSettings {
   ai2Config: AIAgent
   startingMessage: string
   conversationDirection: ConversationDirection
+  commonSystemInstruction: string
   lastUpdated: string
   version: string
 }
@@ -155,6 +156,7 @@ const STORAGE_KEYS = {
   AI2_CONFIG: 'ai2_config',
   STARTING_MESSAGE: 'starting_message',
   CONVERSATION_DIRECTION: 'conversation_direction',
+  COMMON_SYSTEM_INSTRUCTION: 'common_system_instruction',
   USER_PREFERENCES: 'user_preferences'
 } as const
 
@@ -187,6 +189,7 @@ export const DEFAULT_AI2_CONFIG: AIAgent = {
 
 export const DEFAULT_STARTING_MESSAGE = "Hello! I'm excited to have a conversation with you. What would you like to explore together?"
 export const DEFAULT_CONVERSATION_DIRECTION: ConversationDirection = 'ai1-to-ai2'
+export const DEFAULT_COMMON_SYSTEM_INSTRUCTION = "You are engaging in a conversation with another AI assistant. Keep your responses natural, thoughtful, and conversational. Build upon the conversation history and respond directly to what was just said. Avoid repeating information already covered unless it adds new insight."
 
 // Safe localStorage operations (client-side only)
 export function isLocalStorageAvailable(): boolean {
@@ -258,6 +261,7 @@ export function loadConversationSettings(): {
   ai2Config: AIAgent
   startingMessage: string
   conversationDirection: ConversationDirection
+  commonSystemInstruction: string
 } {
   console.log('🔄 Loading conversation settings from localStorage...')
   
@@ -265,6 +269,7 @@ export function loadConversationSettings(): {
   const ai2Config = getFromLocalStorage(STORAGE_KEYS.AI2_CONFIG, DEFAULT_AI2_CONFIG)
   const startingMessage = getFromLocalStorage(STORAGE_KEYS.STARTING_MESSAGE, DEFAULT_STARTING_MESSAGE)
   const conversationDirection = getFromLocalStorage(STORAGE_KEYS.CONVERSATION_DIRECTION, DEFAULT_CONVERSATION_DIRECTION)
+  const commonSystemInstruction = getFromLocalStorage(STORAGE_KEYS.COMMON_SYSTEM_INSTRUCTION, DEFAULT_COMMON_SYSTEM_INSTRUCTION)
 
   // Validate and fix any missing or invalid properties
   const validatedAI1 = validateAIConfig(ai1Config, DEFAULT_AI1_CONFIG)
@@ -276,14 +281,16 @@ export function loadConversationSettings(): {
     ai2Name: validatedAI2.name,
     ai2Model: validatedAI2.model || 'Not selected',
     startingMessage: startingMessage.substring(0, 50) + '...',
-    direction: conversationDirection
+    direction: conversationDirection,
+    commonSystemInstruction: commonSystemInstruction.substring(0, 50) + '...'
   })
 
   return {
     ai1Config: validatedAI1,
     ai2Config: validatedAI2,
     startingMessage,
-    conversationDirection
+    conversationDirection,
+    commonSystemInstruction
   }
 }
 
@@ -292,6 +299,7 @@ export function saveConversationSettings(settings: {
   ai2Config?: Partial<AIAgent>
   startingMessage?: string
   conversationDirection?: ConversationDirection
+  commonSystemInstruction?: string
 }): boolean {
   console.log('💾 Saving conversation settings to localStorage...', settings)
   
@@ -320,6 +328,11 @@ export function saveConversationSettings(settings: {
 
   if (settings.conversationDirection) {
     const success = saveToLocalStorage(STORAGE_KEYS.CONVERSATION_DIRECTION, settings.conversationDirection)
+    allSaved = allSaved && success
+  }
+
+  if (settings.commonSystemInstruction !== undefined) {
+    const success = saveToLocalStorage(STORAGE_KEYS.COMMON_SYSTEM_INSTRUCTION, settings.commonSystemInstruction)
     allSaved = allSaved && success
   }
 
@@ -358,7 +371,8 @@ export function resetConversationSettings(): boolean {
     ai1Config: DEFAULT_AI1_CONFIG,
     ai2Config: DEFAULT_AI2_CONFIG,
     startingMessage: DEFAULT_STARTING_MESSAGE,
-    conversationDirection: DEFAULT_CONVERSATION_DIRECTION
+    conversationDirection: DEFAULT_CONVERSATION_DIRECTION,
+    commonSystemInstruction: DEFAULT_COMMON_SYSTEM_INSTRUCTION
   })
 
   if (success) {
@@ -389,7 +403,8 @@ export function importConversationSettings(jsonString: string): boolean {
       ai1Config: importData.ai1Config,
       ai2Config: importData.ai2Config,
       startingMessage: importData.startingMessage,
-      conversationDirection: importData.conversationDirection
+      conversationDirection: importData.conversationDirection,
+      commonSystemInstruction: importData.commonSystemInstruction || DEFAULT_COMMON_SYSTEM_INSTRUCTION
     }
     
     return saveConversationSettings(settings)
@@ -414,6 +429,11 @@ export const debouncedSaveAI2Config = debounce((config: Partial<AIAgent>) => {
 export const debouncedSaveStartingMessage = debounce((message: string) => {
   console.log('💾 Debounced save starting message:', message.substring(0, 50) + '...')
   saveConversationSettings({ startingMessage: message })
+}, 1500)
+
+export const debouncedSaveCommonSystemInstruction = debounce((instruction: string) => {
+  console.log('💾 Debounced save common system instruction:', instruction.substring(0, 50) + '...')
+  saveConversationSettings({ commonSystemInstruction: instruction })
 }, 1500)
 
 // ========== AI NAME PRESETS ==========
@@ -482,10 +502,12 @@ export default {
   debouncedSaveAI1Config,
   debouncedSaveAI2Config,
   debouncedSaveStartingMessage,
+  debouncedSaveCommonSystemInstruction,
   // Constants
   DEFAULT_AI1_CONFIG,
   DEFAULT_AI2_CONFIG,
   DEFAULT_STARTING_MESSAGE,
   DEFAULT_CONVERSATION_DIRECTION,
+  DEFAULT_COMMON_SYSTEM_INSTRUCTION,
   AI_NAME_PRESETS
 }

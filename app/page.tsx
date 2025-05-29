@@ -20,10 +20,12 @@ import {
   debouncedSaveAI2Config,
   debouncedSaveStartingMessage,
   resetConversationSettings,
+  debouncedSaveCommonSystemInstruction, // NEW
   DEFAULT_AI1_CONFIG,
   DEFAULT_AI2_CONFIG,
   DEFAULT_STARTING_MESSAGE,
-  DEFAULT_CONVERSATION_DIRECTION
+  DEFAULT_CONVERSATION_DIRECTION,
+  DEFAULT_COMMON_SYSTEM_INSTRUCTION // NEW
 } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -349,6 +351,8 @@ function MainApp() {
     resetConversationState
   } = useConversation()
   
+  const [commonSystemInstruction, setCommonSystemInstruction] = useState<string>(DEFAULT_COMMON_SYSTEM_INSTRUCTION)
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [ai1Config, setAI1Config] = useState<AIAgent>(DEFAULT_AI1_CONFIG)
   const [ai2Config, setAI2Config] = useState<AIAgent>(DEFAULT_AI2_CONFIG)
@@ -432,11 +436,11 @@ function MainApp() {
       try {
         console.log('🔄 Loading settings from localStorage...')
         const savedSettings = loadConversationSettings()
-        
         setAI1Config(savedSettings.ai1Config)
         setAI2Config(savedSettings.ai2Config)
         setStartingMessage(savedSettings.startingMessage)
         setConversationDirection(savedSettings.conversationDirection)
+        setCommonSystemInstruction(savedSettings.commonSystemInstruction)
         setHasLoadedSettings(true)
         
         console.log('✅ Settings loaded successfully:', {
@@ -506,6 +510,14 @@ function MainApp() {
     currentMessagesRef.current = state.messages
     log(`🔄 State sync: isActive = ${state.isActive}, messageCount = ${state.messages.length}, activeConversationId = ${activeConversationIdRef.current}`)
   }, [state.isActive, state.messages])
+
+
+  useEffect(() => {
+    if (hasLoadedSettings && isClientSide) {
+      console.log('💾 Common system instruction changed, saving...', commonSystemInstruction.substring(0, 50) + '...')
+      debouncedSaveCommonSystemInstruction(commonSystemInstruction)
+    }
+  }, [commonSystemInstruction, hasLoadedSettings, isClientSide])
 
   const log = useCallback((message: string, data?: any) => {
     debugLog(message, data)
@@ -724,7 +736,7 @@ function MainApp() {
       const messages = [
         {
           role: 'system',
-          content: `${config.prompt}\n\nYou are ${config.name}, engaging in a conversation with another AI assistant. Keep your responses natural, thoughtful, and conversational. Build upon the conversation history and respond directly to what was just said. Avoid repeating information already covered unless it adds new insight.`
+           content: `${config.prompt}\n\nYou are ${config.name}, ${commonSystemInstruction}`
         },
         ...conversationHistory,
         // FIXED: Only add prompt if it's not already in history
@@ -979,6 +991,7 @@ function MainApp() {
       setAI2Config(DEFAULT_AI2_CONFIG)
       setStartingMessage(DEFAULT_STARTING_MESSAGE)
       setConversationDirection(DEFAULT_CONVERSATION_DIRECTION)
+      setCommonSystemInstruction(DEFAULT_COMMON_SYSTEM_INSTRUCTION)
       
       toast.success('Settings Reset', {
         description: 'All conversation settings have been reset to defaults.',
@@ -1306,19 +1319,25 @@ function MainApp() {
 
       {/* Premium Footer */}
       <footer className="border-t bg-gradient-to-r from-background to-muted/30 py-4 flex-shrink-0 mt-auto">
-        <div className="container mx-auto text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Clean Conversations</span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Piotr Tamulewicz | 
-            <a href="https://petertam.pro/" className="underline ml-1 hover:text-primary transition-colors">
-              petertam.pro
-            </a>
-          </p>
+      <div className="container mx-auto text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Powered by Creativity</span>
         </div>
-      </footer>
+        <p className="text-xs text-muted-foreground flex items-center justify-center gap-2">
+          &copy; {new Date().getFullYear()} 
+          <img 
+            src="/img/pt.webp" 
+            alt="Piotr Tamulewicz"
+            className="w-6 h-6 rounded-full object-cover border border-border/50"
+          />
+          Piotr Tamulewicz |
+          <a href="https://petertam.pro/" className="underline ml-1 hover:text-primary transition-colors">
+            petertam.pro
+          </a>
+        </p>
+      </div>
+    </footer>
 
       {/* Premium Settings Panel */}
       <PremiumSettingsPanel
@@ -1328,6 +1347,8 @@ function MainApp() {
         ai2Config={ai2Config}
         onAI1ConfigChange={(config) => setAI1Config(prev => ({ ...prev, ...config }))}
         onAI2ConfigChange={(config) => setAI2Config(prev => ({ ...prev, ...config }))}
+        commonSystemInstruction={commonSystemInstruction}
+        onCommonSystemInstructionChange={setCommonSystemInstruction}
         isSharedView={false}
       />
     </div>
