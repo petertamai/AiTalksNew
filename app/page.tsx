@@ -1,4 +1,4 @@
-// app/page.tsx - COMPLETE FIXED VERSION: Proper conversation flow and context building
+// app/page.tsx - COMPLETE FIXED VERSION: NO NAMES, NO DUPLICATES
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
@@ -515,7 +515,7 @@ function MainApp() {
     setDebugLogs(prev => [...prev.slice(-19), logEntry])
   }, [])
 
-  // FIXED: Get current conversation history for AI context - PROPER perspective building
+  // FIXED: Get conversation history with NO NAMES and proper deduplication
   const getCurrentConversationHistory = useCallback((forAI: 'ai1' | 'ai2') => {
     const messages = currentMessagesRef.current
     
@@ -523,34 +523,33 @@ function MainApp() {
     const conversationMessages = messages
       .filter(msg => msg.role === 'assistant' && msg.agent) // Only AI messages with valid agents
       .map((msg) => {
-        // Build proper perspective: 
-        // - This AI's messages become 'assistant' role
-        // - Other AI's messages become 'user' role
+        // FIXED: Build CLEAN perspective with NO NAMES
         if (msg.agent === forAI) {
           return {
             role: 'assistant' as const,
-            content: msg.content,
-            name: forAI === 'ai1' ? ai1Config.name : ai2Config.name
+            content: msg.content
+            // NO name field!
           }
         } else {
           return {
             role: 'user' as const,
-            content: msg.content,
-            name: msg.agent === 'ai1' ? ai1Config.name : ai2Config.name
+            content: msg.content
+            // NO name field!
           }
         }
       })
-      .slice(-10) // Keep last 10 messages for context (5 turns each)
+      .slice(-8) // Keep last 8 messages for context (4 turns each)
 
-    log(`📚 Built conversation history for ${forAI}:`, {
+    log(`📚 CLEAN: Built conversation history for ${forAI}:`, {
       historyLength: conversationMessages.length,
       totalMessagesInState: messages.length,
       perspective: `${forAI} sees their own messages as 'assistant', other AI as 'user'`,
+      hasNames: conversationMessages.some(m => 'name' in m),
       lastRole: conversationMessages.length > 0 ? conversationMessages[conversationMessages.length - 1].role : 'none'
     })
 
     return conversationMessages
-  }, [ai1Config.name, ai2Config.name, log])
+  }, [log])
 
   const addThinkingDelay = async (aiId: 'ai1' | 'ai2') => {
     log(`💭 ${aiId} is thinking...`)
@@ -693,7 +692,7 @@ function MainApp() {
     }
   }
 
-  // FIXED: Streamlined processTurn function with proper API calls
+  // FIXED: Streamlined processTurn function with CLEAN API calls - NO DUPLICATES
   const processTurn = async (
     currentAi: 'ai1' | 'ai2',
     promptMessage: string,
@@ -717,29 +716,36 @@ function MainApp() {
 
       log(`📞 Getting AI response for ${currentAi} with prompt: "${promptMessage.substring(0, 50)}..."`)
       
-      // Get conversation history from this AI's perspective
+      // FIXED: Get CLEAN conversation history (no names, no duplicates)
       const conversationHistory = getCurrentConversationHistory(currentAi)
       const config = currentAi === 'ai1' ? ai1Config : ai2Config
       
-      // Build messages for API call - CLEAN, NO DUPLICATION
+      // FIXED: Build CLEAN messages for API call - NO NAMES, NO DUPLICATES
       const messages = [
         {
           role: 'system',
           content: `${config.prompt}\n\nYou are ${config.name}, engaging in a conversation with another AI assistant. Keep your responses natural, thoughtful, and conversational. Build upon the conversation history and respond directly to what was just said. Avoid repeating information already covered unless it adds new insight.`
         },
         ...conversationHistory,
-        {
-          role: 'user',
-          content: promptMessage
-        }
+        // FIXED: Only add prompt if it's not already in history
+        ...(conversationHistory.length === 0 || conversationHistory[conversationHistory.length - 1].content !== promptMessage
+          ? [{
+              role: 'user' as const,
+              content: promptMessage
+            }]
+          : [])
       ]
 
-      log(`📤 Sending clean API request for ${currentAi} (${config.name}):`, {
+      log(`📤 CLEAN: Sending API request for ${currentAi} (${config.name}):`, {
         totalMessages: messages.length,
         systemMessage: 1,
         historyMessages: conversationHistory.length,
-        promptMessage: 1,
-        lastUserMessage: promptMessage.substring(0, 50) + '...'
+        newPromptAdded: conversationHistory.length === 0 || conversationHistory[conversationHistory.length - 1].content !== promptMessage,
+        lastUserMessage: promptMessage.substring(0, 50) + '...',
+        messagesWithNames: messages.filter(m => 'name' in m).length,
+        duplicateCheck: messages.filter((m, i, arr) => 
+          arr.findIndex(m2 => m2.role === m.role && m2.content === m.content) !== i
+        ).length
       })
 
       // Make API call
@@ -839,7 +845,7 @@ function MainApp() {
   }
 
   const handleStartConversation = async (direction: ConversationDirection, message: string) => {
-    log('🚀 STARTING PREMIUM AI CONVERSATION', {
+    log('🚀 STARTING CLEAN AI CONVERSATION', {
       direction,
       message: message.substring(0, 50) + '...',
       ai1Model: ai1Config.model,
@@ -882,7 +888,7 @@ function MainApp() {
       activeConversationIdRef.current = newConversationId
       setHasAudio(false)
       
-      log('🎬 Initializing new conversation', {
+      log('🎬 Initializing new CLEAN conversation', {
         newConversationId,
         messagesAfterReset: currentMessagesRef.current.length
       })
@@ -903,7 +909,7 @@ function MainApp() {
         receiver = 'ai1'
       }
 
-      log(`📝 Adding initial message from ${sender} to start conversation`)
+      log(`📝 CLEAN: Adding initial message from ${sender} to start conversation`)
 
       const initialMessageIndex = 0
       
@@ -918,12 +924,12 @@ function MainApp() {
       log(`🎵 Generating TTS for initial message from ${sender} with conversationId: ${newConversationId}`)
       await speakText(sender, message, initialMessageIndex)
 
-      toast.success('AI Conversation Started', {
-        description: `Premium AI conversation initiated: ${sender} → ${receiver}`,
+      toast.success('Clean AI Conversation Started', {
+        description: `No names, no duplicates: ${sender} → ${receiver}`,
         duration: 3000
       })
 
-      log(`🎯 Starting conversation flow with ${receiver} responding to: "${message.substring(0, 50)}..."`)
+      log(`🎯 CLEAN: Starting conversation flow with ${receiver} responding to: "${message.substring(0, 50)}..."`)
       
       // Start conversation with the receiver, passing the initial message as the prompt
       await processTurn(receiver, message, true)
@@ -1178,7 +1184,7 @@ function MainApp() {
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                     AI Conversation System
                   </h1>
-                  <p className="text-sm text-muted-foreground">AI Collaboration Platform</p>
+                  <p className="text-sm text-muted-foreground">Clean AI Collaboration Platform</p>
                 </div>
               </div>
             </Link>
@@ -1251,7 +1257,7 @@ function MainApp() {
         <div className="bg-black/95 text-green-400 p-4 text-xs font-mono max-h-48 overflow-y-auto border-b flex-shrink-0">
           <div className="flex items-center gap-2 mb-2 text-green-300">
             <Zap className="h-3 w-3" />
-            <span>Debug Console - Active: {activeConversationIdRef.current} | Playback: {playbackHighlightedMessage.messageIndex} | Messages: {state.messages.length}</span>
+            <span>CLEAN Debug Console - Active: {activeConversationIdRef.current} | Playback: {playbackHighlightedMessage.messageIndex} | Messages: {state.messages.length}</span>
           </div>
           {debugLogs.map((log, index) => (
             <div key={index} className="opacity-80 hover:opacity-100 transition-opacity">
@@ -1303,7 +1309,7 @@ function MainApp() {
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Powered by Creativity</span>
+            <span className="text-sm font-medium">Clean Conversations</span>
           </div>
           <p className="text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} Piotr Tamulewicz | 

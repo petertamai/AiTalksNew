@@ -1,4 +1,4 @@
-// components/ai-conversation/conversation-flow.tsx - Updated to show custom names
+// components/ai-conversation/conversation-flow.tsx - SIMPLE FIX: Just fix starter attribution
 "use client"
 
 import * as React from "react"
@@ -26,18 +26,17 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ConversationDirection, AIAgent } from "@/types"
-import { DEFAULT_STARTING_MESSAGE, generateRandomAIName } from "@/lib/utils"
+import { DEFAULT_STARTING_MESSAGE, debugLog } from "@/lib/utils"
 import { toast } from "sonner"
 
 interface ConversationFlowProps {
   ai1Config: AIAgent
   ai2Config: AIAgent
   isActive: boolean
-  onStart: (direction: ConversationDirection, message: string) => void
+  onStart: (direction: ConversationDirection, message: string) => Promise<void>
   onStop: () => void
   disabled?: boolean
   className?: string
-  // New props for localStorage integration
   startingMessage: string
   onStartingMessageChange: (message: string) => void
   conversationDirection: ConversationDirection
@@ -147,7 +146,11 @@ export function ConversationFlow({
 
     setIsStarting(true)
     try {
+      // SIMPLE: Just call the parent's onStart - let the parent handle the conversation logic
       await onStart(conversationDirection, localMessage.trim())
+    } catch (error) {
+      console.error('Failed to start conversation:', error)
+      toast.error('Failed to start conversation')
     } finally {
       setIsStarting(false)
     }

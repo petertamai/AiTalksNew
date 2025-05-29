@@ -1,4 +1,4 @@
-// app/api/openrouter/chat/route.ts
+// app/api/openrouter/chat/route.ts - DEBUG VERSION to see what's being sent
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
@@ -15,6 +15,38 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+
+    // 🔍 DEBUG: Log what we're receiving
+    console.log('🔍 DEBUG: Received request body:', JSON.stringify(body, null, 2))
+    console.log('🔍 DEBUG: Messages array:', body.messages?.map((msg: any, i: number) => ({
+      index: i,
+      role: msg.role,
+      content: msg.content?.substring(0, 50) + '...',
+      name: msg.name || 'NO_NAME',
+      hasName: !!msg.name
+    })))
+
+    // Check for duplicates
+    if (body.messages) {
+      const duplicates = body.messages.filter((msg: any, index: number, array: any[]) => {
+        return array.findIndex((m: any) => 
+          m.role === msg.role && 
+          m.content === msg.content && 
+          m.name === msg.name
+        ) !== index
+      })
+      
+      if (duplicates.length > 0) {
+        console.log('🚨 DUPLICATES DETECTED:', duplicates.length)
+        duplicates.forEach((dup: any, i: number) => {
+          console.log(`🚨 Duplicate ${i}:`, {
+            role: dup.role,
+            content: dup.content?.substring(0, 30) + '...',
+            name: dup.name
+          })
+        })
+      }
+    }
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -40,6 +72,14 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json()
+    
+    // 🔍 DEBUG: Log the response
+    console.log('🔍 DEBUG: OpenRouter response:', {
+      model: data.model,
+      usage: data.usage,
+      responseLength: data.choices?.[0]?.message?.content?.length
+    })
+    
     return NextResponse.json(data)
 
   } catch (error) {
