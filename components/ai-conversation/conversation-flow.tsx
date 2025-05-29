@@ -73,11 +73,7 @@ const FLOW_OPTIONS: {
 ]
 
 const SAMPLE_MESSAGES = [
-  "Hello! I'm excited to chat with you today. What interests you the most about artificial intelligence?",
-  "I'd love to explore the relationship between creativity and technology. What's your perspective?",
-  "Let's discuss the future of human-AI collaboration. How do you envision it evolving?",
-  "What are your thoughts on the ethical implications of advanced AI systems?",
-  "I'm curious about your views on consciousness and what it means to truly understand something."
+  "Hello!",
 ]
 
 export function ConversationFlow({
