@@ -385,24 +385,19 @@ function MessageItem({
       onMouseLeave={() => setIsHovered(false)}
       data-message-index={index}
     >
-      {/* Live Speaking Indicator */}
+      {/* Live Speaking Indicator - RIGHT ALIGNED */}
       {isSpeaking && (
-        <div className="absolute -top-3 left-4 flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs shadow-lg z-10 animate-pulse">
-          <div className="flex gap-1">
-            <div className="w-1 h-3 bg-current rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-            <div className="w-1 h-3 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-            <div className="w-1 h-3 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-          </div>
-          <Mic className="h-3 w-3" />
-          <span className="font-medium">Speaking...</span>
+        <div className="absolute -top-2 right-4 flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs shadow-lg z-10">
+          <Volume2 className="h-3 w-3" />
+          <span className="font-medium">Speaking</span>
         </div>
       )}
 
-      {/* Playback Highlighting Indicator */}
+      {/* Playback Highlighting Indicator - RIGHT ALIGNED */}
       {isPlaybackHighlighted && !isSpeaking && (
-        <div className="absolute -top-3 left-4 flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-full text-xs shadow-lg z-10 animate-pulse">
+        <div className="absolute -top-2 right-4 flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-full text-xs shadow-lg z-10">
           <PlayCircle className="h-3 w-3" />
-          <span className="font-medium">Playing Audio...</span>
+          <span className="font-medium">Playing Audio</span>
         </div>
       )}
 

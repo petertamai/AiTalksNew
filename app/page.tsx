@@ -1185,23 +1185,23 @@ function MainApp() {
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
-        {/* Premium Header */}
-        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
-          <div className="container mx-auto flex justify-between items-center p-4">
-            <Link href="/">
-              <div className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-                  <BrainCircuit className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    AI Conversation System
-                  </h1>
-                  <p className="text-sm text-muted-foreground">Clean AI Collaboration Platform</p>
-                </div>
+ {/* Premium Header */}
+ <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
+        <div className="container mx-auto flex justify-between items-center p-4">
+          <Link href="/">
+            <div className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+                <BrainCircuit className="h-6 w-6 text-primary-foreground" />
               </div>
-            </Link>
-          
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  AI Conversation System
+                </h1>
+                <p className="text-sm text-muted-foreground">Clean AI Collaboration Platform</p>
+              </div>
+            </div>
+          </Link>
+        
           <div className="flex items-center gap-2">
             {/* Audio Player Controls */}
             {hasAudio && state.messages.length > 0 && (
@@ -1231,6 +1231,19 @@ function MainApp() {
                 )}
               </div>
             )}
+            
+            {/* Navigation Links */}
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="gap-2"
+            >
+              <Link href="/about">
+                <Sparkles className="h-4 w-4" />
+                About
+              </Link>
+            </Button>
             
             <Button
               variant="outline"
