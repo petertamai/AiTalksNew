@@ -9,6 +9,7 @@ import { ConversationDisplay } from '@/components/ai-conversation/conversation-d
 import { ConversationFlow } from '@/components/ai-conversation/conversation-flow'
 import { PremiumSettingsPanel } from '@/components/ai-conversation/premium-settings-panel'
 import { AIAgent, ConversationDirection, OpenRouterResponse } from '@/types'
+import Link from "next/link";
 import { 
   generateId, 
   calculateSpeakingTime, 
@@ -1174,21 +1175,23 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
-      {/* Premium Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
-        <div className="container mx-auto flex justify-between items-center p-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-              <BrainCircuit className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                AI Conversation System
-              </h1>
-              <p className="text-sm text-muted-foreground">Premium AI Collaboration Platform</p>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
+        {/* Premium Header */}
+        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
+          <div className="container mx-auto flex justify-between items-center p-4">
+            <Link href="/">
+              <div className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+                  <BrainCircuit className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                    AI Conversation System
+                  </h1>
+                  <p className="text-sm text-muted-foreground">AI Collaboration Platform</p>
+                </div>
+              </div>
+            </Link>
           
           <div className="flex items-center gap-2">
             {/* FIXED: Audio Player Controls with Better Error Display */}
@@ -1287,23 +1290,7 @@ function MainApp() {
               onDirectionChange={setConversationDirection}
             />
             
-            {/* Quick Stats */}
-            {state.messages.length > 0 && (
-              <div className="grid grid-cols-3 gap-4 flex-shrink-0">
-                <div className="rounded-lg bg-gradient-to-r from-blue-50 to-blue-100/50 border border-blue-200/50 p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{state.messages.filter(m => m.agent === 'ai1').length}</div>
-                  <div className="text-xs text-blue-600/70">{ai1Config.name} Messages</div>
-                </div>
-                <div className="rounded-lg bg-gradient-to-r from-purple-50 to-purple-100/50 border border-purple-200/50 p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-600">{state.messages.filter(m => m.agent === 'ai2').length}</div>
-                  <div className="text-xs text-purple-600/70">{ai2Config.name} Messages</div>
-                </div>
-                <div className="rounded-lg bg-gradient-to-r from-green-50 to-green-100/50 border border-green-200/50 p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">{state.messages.length}</div>
-                  <div className="text-xs text-green-600/70">Total Messages</div>
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* Right Panel - Conversation Display */}
@@ -1327,7 +1314,7 @@ function MainApp() {
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Powered by Advanced AI Technology</span>
+            <span className="text-sm font-medium">Powered by Creativity</span>
           </div>
           <p className="text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} Piotr Tamulewicz | 
