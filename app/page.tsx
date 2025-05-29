@@ -329,7 +329,7 @@ function MainApp() {
   }
 
   const handleStartConversation = async (direction: ConversationDirection, message: string) => {
-    log('🚀 STARTING PREMIUM CONVERSATION', {
+    log('🚀 STARTING PREMIUM AI CONVERSATION', {
       direction,
       message: message.substring(0, 50) + '...',
       ai1Model: ai1Config.model,
@@ -360,7 +360,7 @@ function MainApp() {
     }
 
     try {
-      log('🎬 Initializing premium conversation experience')
+      log('🎬 Initializing premium AI conversation experience')
       
       isConversationActive.current = true
       
@@ -369,16 +369,11 @@ function MainApp() {
       setConversationId(generateId())
       setHasAudio(false)
 
-      let sender: 'ai1' | 'ai2' | 'human'
+      // For AI-to-AI conversations, determine the starting AI and receiver
+      let sender: 'ai1' | 'ai2'
       let receiver: 'ai1' | 'ai2'
 
-      if (direction === 'human-to-ai1') {
-        sender = 'human'
-        receiver = 'ai1'
-      } else if (direction === 'human-to-ai2') {
-        sender = 'human'
-        receiver = 'ai2'
-      } else if (direction === 'ai1-to-ai2') {
+      if (direction === 'ai1-to-ai2') {
         sender = 'ai1'
         receiver = 'ai2'
       } else {
@@ -390,18 +385,16 @@ function MainApp() {
 
       const initialMessageIndex = 0
       addMessage({
-        role: sender === 'human' ? 'human' : 'assistant',
+        role: 'assistant',
         content: message,
-        agent: sender === 'human' ? undefined : sender,
-        model: sender === 'ai1' ? ai1Config.model : sender === 'ai2' ? ai2Config.model : undefined,
+        agent: sender,
+        model: sender === 'ai1' ? ai1Config.model : ai2Config.model,
       })
 
-      if (sender === 'ai1' || sender === 'ai2') {
-        log(`🎵 Generating TTS for initial message from ${sender}`)
-        await speakText(sender, message, initialMessageIndex)
-      }
+      log(`🎵 Generating TTS for initial message from ${sender}`)
+      await speakText(sender, message, initialMessageIndex)
 
-      toast.success('Conversation Started', {
+      toast.success('AI Conversation Started', {
         description: `Premium AI conversation initiated: ${sender} → ${receiver}`,
         duration: 3000
       })
@@ -569,9 +562,9 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
       {/* Premium Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
         <div className="container mx-auto flex justify-between items-center p-4">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
@@ -611,7 +604,7 @@ function MainApp() {
 
       {/* Debug Panel */}
       {showDebug && (
-        <div className="bg-black/95 text-green-400 p-4 text-xs font-mono max-h-48 overflow-y-auto border-b">
+        <div className="bg-black/95 text-green-400 p-4 text-xs font-mono max-h-48 overflow-y-auto border-b flex-shrink-0">
           <div className="flex items-center gap-2 mb-2 text-green-300">
             <Zap className="h-3 w-3" />
             <span>Debug Console</span>
@@ -624,11 +617,11 @@ function MainApp() {
         </div>
       )}
 
-      {/* Main Content Grid */}
-      <main className="container mx-auto p-6">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 h-[calc(100vh-200px)]">
+      {/* Main Content Grid - With proper flex layout */}
+      <main className="container mx-auto p-6 flex-1 flex flex-col">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 flex-1 min-h-0">
           {/* Left Panel - Conversation Flow */}
-          <div className="space-y-6">
+          <div className="flex flex-col space-y-6">
             <ConversationFlow 
               ai1Config={ai1Config}
               ai2Config={ai2Config}
@@ -639,11 +632,12 @@ function MainApp() {
                 stopConversation('Conversation stopped by user')
               }}
               disabled={false}
+              className="flex-shrink-0"
             />
             
             {/* Quick Stats */}
             {state.messages.length > 0 && (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4 flex-shrink-0">
                 <div className="rounded-lg bg-gradient-to-r from-blue-50 to-blue-100/50 border border-blue-200/50 p-4 text-center">
                   <div className="text-2xl font-bold text-blue-600">{state.messages.filter(m => m.agent === 'ai1').length}</div>
                   <div className="text-xs text-blue-600/70">{ai1Config.name} Messages</div>
@@ -661,18 +655,21 @@ function MainApp() {
           </div>
 
           {/* Right Panel - Conversation Display */}
-          <ConversationDisplay
-            state={state}
-            onShare={handleShareConversation}
-            onPlayAudio={handlePlayAudio}
-            hasAudio={hasAudio}
-            isSharedView={false}
-          />
+          <div className="flex flex-col min-h-0">
+            <ConversationDisplay
+              state={state}
+              onShare={handleShareConversation}
+              onPlayAudio={handlePlayAudio}
+              hasAudio={hasAudio}
+              isSharedView={false}
+              className="flex-1"
+            />
+          </div>
         </div>
       </main>
 
-      {/* Premium Footer */}
-      <footer className="border-t bg-gradient-to-r from-background to-muted/30 py-6">
+      {/* Premium Footer - Fixed at bottom */}
+      <footer className="border-t bg-gradient-to-r from-background to-muted/30 py-4 flex-shrink-0 mt-auto">
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Sparkles className="h-4 w-4 text-primary" />

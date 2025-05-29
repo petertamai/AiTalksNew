@@ -43,20 +43,6 @@ const FLOW_OPTIONS: {
   gradient: string
 }[] = [
   {
-    id: 'human-to-ai1',
-    title: 'Human → AI-1',
-    description: 'Start with human message to first AI',
-    icon: <User className="h-4 w-4" />,
-    path: (
-      <div className="flex items-center gap-1">
-        <User className="h-3 w-3" />
-        <ArrowRight className="h-3 w-3" />
-        <Bot className="h-3 w-3 text-blue-500" />
-      </div>
-    ),
-    gradient: 'from-green-500/20 to-blue-500/20'
-  },
-  {
     id: 'ai1-to-ai2',
     title: 'AI-1 ↔ AI-2',
     description: 'Automatic conversation between both AIs',
@@ -69,20 +55,6 @@ const FLOW_OPTIONS: {
       </div>
     ),
     gradient: 'from-blue-500/20 to-purple-500/20'
-  },
-  {
-    id: 'human-to-ai2',
-    title: 'Human → AI-2',
-    description: 'Start with human message to second AI',
-    icon: <User className="h-4 w-4" />,
-    path: (
-      <div className="flex items-center gap-1">
-        <User className="h-3 w-3" />
-        <ArrowRight className="h-3 w-3" />
-        <Bot className="h-3 w-3 text-purple-500" />
-      </div>
-    ),
-    gradient: 'from-green-500/20 to-purple-500/20'
   },
   {
     id: 'ai2-to-ai1',
@@ -159,9 +131,9 @@ export function ConversationFlow({
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg">Conversation Flow</CardTitle>
+              <CardTitle className="text-lg">AI Conversation Flow</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Configure and start your AI conversation
+                Configure and start your AI-to-AI conversation
               </p>
             </div>
           </div>
@@ -198,8 +170,8 @@ export function ConversationFlow({
 
         {/* Flow Selection */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Conversation Flow</Label>
-          <div className="grid grid-cols-2 gap-3">
+          <Label className="text-sm font-medium">AI Conversation Flow</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {FLOW_OPTIONS.map((option) => (
               <button
                 key={option.id}
@@ -249,7 +221,7 @@ export function ConversationFlow({
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Enter the message that will start the conversation..."
+            placeholder="Enter the message that will start the AI conversation..."
             className="min-h-[100px] resize-none"
             disabled={disabled || isActive}
           />
@@ -270,7 +242,7 @@ export function ConversationFlow({
                     message === sample ? "bg-primary/10 border-primary" : "border-border"
                   )}
                 >
-                  {sample.slice(0, 40)}...
+                  {sample.slice(0, 35)}...
                 </button>
               ))}
             </div>
@@ -289,12 +261,12 @@ export function ConversationFlow({
               {isStarting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2" />
-                  Starting...
+                  Starting AI Conversation...
                 </>
               ) : (
                 <>
                   <Play className="h-4 w-4 mr-2" />
-                  Start Conversation
+                  Start AI Conversation
                 </>
               )}
             </Button>
@@ -314,7 +286,7 @@ export function ConversationFlow({
         {/* Configuration Summary */}
         {canStart && (
           <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Configuration Summary</p>
+            <p className="text-xs font-medium text-muted-foreground">AI Configuration Summary</p>
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">

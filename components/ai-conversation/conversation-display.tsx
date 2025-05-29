@@ -256,7 +256,7 @@ export function ConversationDisplay({
                         state.typingIndicator.ai1 || state.typingIndicator.ai2
 
   return (
-    <Card className={cn("flex flex-col h-full", className)}>
+    <Card className={cn("flex flex-col max-h-[80vh]", className)}>
       <CardHeader className="flex-shrink-0 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -310,8 +310,8 @@ export function ConversationDisplay({
 
       <Separator />
 
-      <CardContent className="flex-1 p-0 overflow-hidden">
-        <ScrollArea ref={scrollAreaRef} className="h-full">
+      <CardContent className="flex-1 p-0 overflow-hidden min-h-0">
+        <ScrollArea ref={scrollAreaRef} className="h-full max-h-[calc(80vh-200px)]">
           <div className="p-4 space-y-4">
             {/* Empty State */}
             {state.messages.length === 0 ? (
