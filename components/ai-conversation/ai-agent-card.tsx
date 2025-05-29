@@ -126,12 +126,12 @@ export function AIAgentCard({
     })
   }
 
-  const handleVoiceChange = (voice: VoiceOption) => {
+  const handleVoiceChange = React.useCallback((voice: VoiceOption) => {
     console.log(`🎵 Voice changed for ${agent.id}:`, voice)
     onChange({
       tts: { ...agent.tts, voice }
     })
-  }
+  }, [agent.id, agent.tts, onChange])
 
   const handleTemperatureChange = (value: number[]) => {
     onChange({ temperature: value[0] })
@@ -176,7 +176,7 @@ export function AIAgentCard({
         handleVoiceChange(fallbackVoice)
       }
     }
-  }, [agent.tts.voice, isVoiceSupported, agent.id])
+  }, [agent.tts.voice, isVoiceSupported, agent.id, handleVoiceChange])
 
   return (
     <Card className={cn(

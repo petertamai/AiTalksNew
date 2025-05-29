@@ -1,7 +1,7 @@
 // app/share/[id]/SharedConversationView.tsx
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -60,8 +60,10 @@ function AudioControls({ audioFiles, conversationId, onAudioStateChange }: Audio
 
   const currentAudio = audioFiles[currentIndex]
 
+  const stableOnAudioStateChange = useCallback(onAudioStateChange, [onAudioStateChange])
+
   useEffect(() => {
-    onAudioStateChange({
+    stableOnAudioStateChange({
       isPlaying,
       isPaused,
       currentIndex,
@@ -69,7 +71,7 @@ function AudioControls({ audioFiles, conversationId, onAudioStateChange }: Audio
       currentAudio,
       error
     })
-  }, [isPlaying, isPaused, currentIndex, progress, currentAudio, error, onAudioStateChange])
+  }, [isPlaying, isPaused, currentIndex, progress, currentAudio, error, stableOnAudioStateChange])
 
   const loadAudio = (index: number) => {
     if (!audioRef.current || !audioFiles[index]) {
@@ -502,7 +504,7 @@ export default function PremiumSharedConversationView({
   const [audioState, setAudioState] = useState<any>({})
   const [isLoadingAudio, setIsLoadingAudio] = useState(false)
 
-  const loadAudioFiles = async () => {
+  const loadAudioFiles = useCallback(async () => {
     if (!hasAudio) return
 
     setIsLoadingAudio(true)
@@ -535,13 +537,13 @@ export default function PremiumSharedConversationView({
     } finally {
       setIsLoadingAudio(false)
     }
-  }
+  }, [hasAudio, conversationId, conversationData.messages])
 
   useEffect(() => {
     if (hasAudio) {
       loadAudioFiles()
     }
-  }, [hasAudio, conversationId, conversationData])
+  }, [hasAudio, loadAudioFiles])
 
   const handleShare = async () => {
     try {
@@ -568,9 +570,9 @@ export default function PremiumSharedConversationView({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Premium Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl">
-        <div className="container mx-auto flex justify-between items-center p-4">
+  {/* Premium Header */}
+  <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl">
+        <div className="container mx-auto flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
               <BrainCircuit className="h-6 w-6 text-primary-foreground" />
@@ -580,7 +582,7 @@ export default function PremiumSharedConversationView({
               <p className="text-sm text-muted-foreground">Shared Conversation</p>
             </div>
           </div>
-
+          
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleShare}>
               <Share2 className="h-4 w-4 mr-1" />

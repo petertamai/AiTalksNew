@@ -243,26 +243,8 @@ export function PremiumSettingsPanel({
   // File input ref for import
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // Load API keys and models on mount
-  React.useEffect(() => {
-    if (isOpen) {
-      console.log('🔧 Settings panel opened, loading data...')
-      loadAPIKeys()
-      if (!isSharedView) {
-        fetchModelsWithDelay()
-      }
-    }
-  }, [isOpen, isSharedView])
-
-  // Save configuration changes to localStorage automatically
-  React.useEffect(() => {
-    if (isOpen && !isSharedView) {
-      console.log('💾 AI configs changed in settings panel, auto-saving to localStorage')
-      // The parent component handles saving via useEffect, but we can add additional logging here
-    }
-  }, [ai1Config, ai2Config, isOpen, isSharedView])
-
-  const loadAPIKeys = () => {
+  // Create stable callback references
+  const loadAPIKeys = React.useCallback(() => {
     console.log('🔑 Loading API keys from cookies...')
     const openrouterKey = Cookies.get('openrouter_api_key') || ''
     const groqKey = Cookies.get('groq_api_key') || ''
@@ -281,9 +263,9 @@ export function PremiumSettingsPanel({
     if (openrouterKey || groqKey) {
       validateKeys(openrouterKey, groqKey)
     }
-  }
+  }, [])
 
-  const validateKeys = async (openrouterKey?: string, groqKey?: string) => {
+  const validateKeys = React.useCallback(async (openrouterKey?: string, groqKey?: string) => {
     console.log('🔍 Validating API keys...')
     
     // Validate OpenRouter key
@@ -318,13 +300,9 @@ export function PremiumSettingsPanel({
         groq: { ...prev.groq, valid: isValid }
       }))
     }
-  }
+  }, [apiKeys.openrouter, apiKeys.groq])
 
-  const fetchModelsWithDelay = async () => {
-    setTimeout(fetchModels, 100)
-  }
-
-  const fetchModels = async () => {
+  const fetchModels = React.useCallback(async () => {
     console.log('📥 Fetching models...')
     setIsLoadingModels(true)
     
@@ -365,7 +343,22 @@ export function PremiumSettingsPanel({
     } finally {
       setIsLoadingModels(false)
     }
-  }
+  }, [])
+
+  const fetchModelsWithDelay = React.useCallback(async () => {
+    setTimeout(fetchModels, 100)
+  }, [fetchModels])
+
+  // Load API keys and models on mount
+  React.useEffect(() => {
+    if (isOpen) {
+      console.log('🔧 Settings panel opened, loading data...')
+      loadAPIKeys()
+      if (!isSharedView) {
+        fetchModelsWithDelay()
+      }
+    }
+  }, [isOpen, isSharedView, loadAPIKeys, fetchModelsWithDelay])
 
   const saveAPIKey = async (keyType: 'openrouter' | 'groq') => {
     const keyValue = apiKeys[keyType].trim()

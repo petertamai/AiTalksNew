@@ -71,6 +71,7 @@ interface MessageItemProps {
 function MarkdownRenderer({ content }: { content: string }) {
   const { theme } = useTheme()
   const [copied, setCopied] = React.useState<string | null>(null)
+  const codeIdRef = React.useRef(0)
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -86,7 +87,7 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Code blocks with syntax highlighting
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '')
-      const codeId = React.useId()
+      const codeId = `code-${++codeIdRef.current}`
       
       if (!inline && match) {
         return (

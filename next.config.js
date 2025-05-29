@@ -14,6 +14,19 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
+  // Build configuration
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
+    dirs: ['app', 'components', 'lib', 'types']
+  },
+  
+  // Output for container deployment
+  output: 'standalone',
+  trailingSlash: false,
+  
   // Security headers
   async headers() {
     return [
@@ -59,23 +72,8 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 
-  // Bundle analyzer
-  ...(process.env.ANALYZE === 'true' && {
-    experimental: {
-      bundlePagesRouterDependencies: true,
-    },
-  }),
-
   // Webpack configuration
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Bundle analyzer
-    if (process.env.ANALYZE === 'true') {
-      const { BundleAnalyzerPlugin } = require('@next/bundle-analyzer')({
-        enabled: true,
-      })
-      config.plugins.push(new BundleAnalyzerPlugin())
-    }
-
     // Optimize imports
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -85,26 +83,6 @@ const nextConfig = {
     return config
   },
 
-  // Environment variables
-  env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
-  },
-
-  // Redirects
-  async redirects() {
-    return [
-      {
-        source: '/docs',
-        destination: '/',
-        permanent: false,
-      },
-    ]
-  },
-
-  // Output configuration for deployment
-  output: 'standalone',
-  trailingSlash: false,
-  
   // Logging
   logging: {
     fetches: {

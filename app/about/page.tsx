@@ -11,6 +11,7 @@ import rehypeKatex from 'rehype-katex'
 import rehypeRaw from 'rehype-raw'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
+import Image from 'next/image'
 import { 
   ArrowLeft,
   Code,
@@ -36,6 +37,7 @@ import { toast } from 'sonner'
 function AboutMarkdownRenderer({ content }: { content: string }) {
   const { theme } = useTheme()
   const [copied, setCopied] = React.useState<string | null>(null)
+  const codeIdRef = React.useRef(0)
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -53,7 +55,7 @@ function AboutMarkdownRenderer({ content }: { content: string }) {
     // Enhanced code blocks with copy functionality
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '')
-      const codeId = React.useId()
+      const codeId = `code-${++codeIdRef.current}`
       
       if (!inline && match) {
         return (
@@ -384,7 +386,7 @@ Configure your API keys in the settings panel to begin creating AI conversations
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
               <Star className="h-4 w-4" />
-              AI 2 AI Conversaions
+              AI 2 AI Conversations
             </div>
           </div>
 

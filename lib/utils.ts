@@ -472,7 +472,8 @@ export function suggestNames(currentName: string, count: number = 5): string[] {
   return Array.from(suggestions).filter(name => name !== currentName)
 }
 
-export default {
+// Named export for utilities collection
+export const utilityHelpers = {
   debugLog,
   cn,
   generateId,

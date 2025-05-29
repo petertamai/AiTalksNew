@@ -1,7 +1,7 @@
 // app/share/[id]/page.tsx
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { ConversationData } from '@/types'
 import PremiumSharedConversationView from '@/app/share/[id]/SharedConversationView'
@@ -33,7 +33,7 @@ export default function SharedConversationPage() {
   const [error, setError] = useState<string | null>(null)
   const [hasAudio, setHasAudio] = useState(false)
 
-  const loadSharedConversation = async () => {
+  const loadSharedConversation = useCallback(async () => {
     if (!conversationId) {
       setError('Invalid conversation ID')
       setIsLoading(false)
@@ -90,11 +90,11 @@ export default function SharedConversationPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [conversationId])
 
   useEffect(() => {
     loadSharedConversation()
-  }, [conversationId])
+  }, [loadSharedConversation])
 
   const handleShare = async () => {
     try {
@@ -196,7 +196,7 @@ export default function SharedConversationPage() {
               description: 'Shared AI conversation from AI Conversation System',
               dateCreated: conversationData.created_at,
               datePublished: conversationData.shared_at,
-              url: window.location.href,
+              url: typeof window !== 'undefined' ? window.location.href : '',
               author: {
                 '@type': 'Organization',
                 name: 'AI Conversation System'
