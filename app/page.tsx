@@ -3,41 +3,28 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Settings, Bug, Sparkles, Zap, BrainCircuit } from 'lucide-react'
+import { Settings, Bug, Sparkles, Zap, BrainCircuit, RotateCcw } from 'lucide-react'
 import { ConversationProvider, useConversation } from '@/contexts/ConversationContext'
 import { ConversationDisplay } from '@/components/ai-conversation/conversation-display'
 import { ConversationFlow } from '@/components/ai-conversation/conversation-flow'
 import { PremiumSettingsPanel } from '@/components/ai-conversation/premium-settings-panel'
 import { AIAgent, ConversationDirection, OpenRouterResponse } from '@/types'
-import { generateId, calculateSpeakingTime, debugLog } from '@/lib/utils'
+import { 
+  generateId, 
+  calculateSpeakingTime, 
+  debugLog,
+  loadConversationSettings,
+  saveConversationSettings,
+  debouncedSaveAI1Config,
+  debouncedSaveAI2Config,
+  debouncedSaveStartingMessage,
+  resetConversationSettings,
+  DEFAULT_AI1_CONFIG,
+  DEFAULT_AI2_CONFIG,
+  DEFAULT_STARTING_MESSAGE,
+  DEFAULT_CONVERSATION_DIRECTION
+} from '@/lib/utils'
 import { toast } from 'sonner'
-
-// Enhanced AI agent configs with premium defaults
-const DEFAULT_AI1_CONFIG: AIAgent = {
-  id: 'ai1',
-  name: 'Genesis',
-  model: '',
-  prompt: "You are Genesis, you are yourself.",
-  maxTokens: 1500,
-  temperature: 0.7,
-  tts: {
-    enabled: true,
-    voice: 'Arista-PlayAI', // Groq-supported voice
-  },
-}
-
-const DEFAULT_AI2_CONFIG: AIAgent = {
-  id: 'ai2',
-  name: 'Synthesis',
-  model: '',
-  prompt: "You are Synthesis,you are yourself.",
-  maxTokens: 1500,
-  temperature: 0.6,
-  tts: {
-    enabled: true,
-    voice: 'Angelo-PlayAI', // Groq-supported voice
-  },
-}
 
 function MainApp() {
   const { 
@@ -54,11 +41,14 @@ function MainApp() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [ai1Config, setAI1Config] = useState<AIAgent>(DEFAULT_AI1_CONFIG)
   const [ai2Config, setAI2Config] = useState<AIAgent>(DEFAULT_AI2_CONFIG)
+  const [startingMessage, setStartingMessage] = useState<string>(DEFAULT_STARTING_MESSAGE)
+  const [conversationDirection, setConversationDirection] = useState<ConversationDirection>(DEFAULT_CONVERSATION_DIRECTION)
   const [conversationId, setConversationId] = useState('')
   const [hasAudio, setHasAudio] = useState(false)
   const [debugLogs, setDebugLogs] = useState<string[]>([])
   const [showDebug, setShowDebug] = useState(false)
   const [isClientSide, setIsClientSide] = useState(false)
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   
   // Use useRef to track conversation state to avoid closure issues
   const isConversationActiveRef = useRef(false)
@@ -82,24 +72,49 @@ function MainApp() {
     }
   }, [])
 
-  // Sync refs with actual state
+  // Load settings from localStorage on client mount
   useEffect(() => {
-    isConversationActiveRef.current = state.isActive
-    currentMessagesRef.current = state.messages
-    log(`🔄 State sync: isActive = ${state.isActive}, messageCount = ${state.messages.length}`)
-  }, [state.isActive, state.messages])
-
-  // Initialize client-side only components
-  useEffect(() => {
-    setIsClientSide(true)
-    setConversationId(generateId())
-    
     if (typeof window !== 'undefined') {
+      setIsClientSide(true)
+      setConversationId(generateId())
+      
+      // Initialize audio elements
       audioElements.current = {
         ai1: new Audio(),
         ai2: new Audio(),
       }
       console.log('🔊 Audio elements initialized on client side')
+
+      // Load conversation settings from localStorage
+      try {
+        console.log('🔄 Loading settings from localStorage...')
+        const savedSettings = loadConversationSettings()
+        
+        setAI1Config(savedSettings.ai1Config)
+        setAI2Config(savedSettings.ai2Config)
+        setStartingMessage(savedSettings.startingMessage)
+        setConversationDirection(savedSettings.conversationDirection)
+        setHasLoadedSettings(true)
+        
+        console.log('✅ Settings loaded successfully:', {
+          ai1: savedSettings.ai1Config.name,
+          ai2: savedSettings.ai2Config.name,
+          startingMessage: savedSettings.startingMessage.substring(0, 30) + '...',
+          direction: savedSettings.conversationDirection
+        })
+        
+        toast.success('Settings Loaded', {
+          description: 'Your conversation settings have been restored.',
+          duration: 2000
+        })
+      } catch (error) {
+        console.error('❌ Error loading settings:', error)
+        setHasLoadedSettings(true)
+        toast.error('Settings Load Failed', {
+          description: 'Using default settings. Your preferences may not be saved.',
+          duration: 3000
+        })
+      }
     }
 
     // Cleanup on unmount
@@ -112,6 +127,42 @@ function MainApp() {
       }
     }
   }, [cleanupAudio])
+
+  // Save settings to localStorage when they change (with debouncing)
+  useEffect(() => {
+    if (hasLoadedSettings && isClientSide) {
+      console.log('💾 AI1 config changed, saving...', ai1Config.name)
+      debouncedSaveAI1Config(ai1Config)
+    }
+  }, [ai1Config, hasLoadedSettings, isClientSide])
+
+  useEffect(() => {
+    if (hasLoadedSettings && isClientSide) {
+      console.log('💾 AI2 config changed, saving...', ai2Config.name)
+      debouncedSaveAI2Config(ai2Config)
+    }
+  }, [ai2Config, hasLoadedSettings, isClientSide])
+
+  useEffect(() => {
+    if (hasLoadedSettings && isClientSide) {
+      console.log('💾 Starting message changed, saving...', startingMessage.substring(0, 30) + '...')
+      debouncedSaveStartingMessage(startingMessage)
+    }
+  }, [startingMessage, hasLoadedSettings, isClientSide])
+
+  useEffect(() => {
+    if (hasLoadedSettings && isClientSide) {
+      console.log('💾 Conversation direction changed, saving...', conversationDirection)
+      saveConversationSettings({ conversationDirection })
+    }
+  }, [conversationDirection, hasLoadedSettings, isClientSide])
+
+  // Sync refs with actual state
+  useEffect(() => {
+    isConversationActiveRef.current = state.isActive
+    currentMessagesRef.current = state.messages
+    log(`🔄 State sync: isActive = ${state.isActive}, messageCount = ${state.messages.length}`)
+  }, [state.isActive, state.messages])
 
   const log = useCallback((message: string, data?: any) => {
     debugLog(message, data)
@@ -270,7 +321,6 @@ function MainApp() {
           const cleanup = () => {
             setSpeakingState(aiId, false)
             URL.revokeObjectURL(audioUrl)
-            // Remove event listeners to prevent memory leaks
             audio.onended = null
             audio.onerror = null
           }
@@ -284,15 +334,12 @@ function MainApp() {
           const onError = (error: any) => {
             cleanup()
             log(`⚠️ Audio playback error for ${aiId}:`, error)
-            // Continue anyway
             resolve()
           }
           
-          // Set up event listeners
           audio.onended = onEnded
           audio.onerror = onError
           
-          // Set a safety timeout as fallback
           const estimatedDuration = calculateSpeakingTime(text)
           const timeoutId = setTimeout(() => {
             if (!audio.paused && !audio.ended) {
@@ -302,7 +349,6 @@ function MainApp() {
             }
           }, estimatedDuration + 3000)
           
-          // Clear timeout if audio ends normally
           const originalOnEnded = onEnded
           const originalOnError = onError
           
@@ -316,7 +362,6 @@ function MainApp() {
             originalOnError(error)
           }
           
-          // Start playing
           audio.play().then(() => {
             log(`🔊 Audio playback started for ${aiId}`)
           }).catch((playError) => {
@@ -327,7 +372,6 @@ function MainApp() {
           })
         })
       } else {
-        // Fallback: simulate speaking time if no audio element
         const speakingTime = calculateSpeakingTime(text)
         log(`⏱️ Simulating speaking time for ${aiId}: ${speakingTime}ms`)
         
@@ -345,7 +389,6 @@ function MainApp() {
       log(`⚠️ TTS error for ${aiId}:`, error)
       setSpeakingState(aiId, false)
       
-      // Brief pause even when TTS fails
       return new Promise(resolve => {
         setTimeout(() => {
           log(`✅ TTS fallback delay completed for ${aiId}`)
@@ -404,7 +447,6 @@ function MainApp() {
         model: currentAi === 'ai1' ? ai1Config.model : ai2Config.model,
       })
 
-      // IMPORTANT: Wait for TTS to complete before continuing conversation
       log(`🎵 Starting TTS for ${currentAi} and WAITING for completion...`)
       await speakText(currentAi, response, messageIndex)
       log(`✅ TTS completed for ${currentAi}, conversation can continue`)
@@ -414,7 +456,6 @@ function MainApp() {
         return
       }
 
-      // Brief pause between speakers for natural flow
       log(`⏸️ Brief pause between speakers...`)
       await new Promise(resolve => setTimeout(resolve, 800))
 
@@ -477,13 +518,9 @@ function MainApp() {
     try {
       log('🧹 Resetting conversation state completely')
       
-      // First, completely reset the conversation state
       resetConversationState()
-      
-      // Wait a bit for state to settle
       await new Promise(resolve => setTimeout(resolve, 100))
       
-      // Generate new conversation ID
       const newConversationId = generateId()
       setConversationId(newConversationId)
       setHasAudio(false)
@@ -493,13 +530,12 @@ function MainApp() {
         messagesAfterReset: currentMessagesRef.current.length
       })
       
-      // Update refs
       isConversationActiveRef.current = true
-      
-      // Start the conversation in context
       startConversation()
 
-      // For AI-to-AI conversations, determine the starting AI and receiver
+      // Update conversation direction and save it
+      setConversationDirection(direction)
+
       let sender: 'ai1' | 'ai2'
       let receiver: 'ai1' | 'ai2'
 
@@ -550,23 +586,41 @@ function MainApp() {
     log('🛑 Stopping conversation manually')
     isConversationActiveRef.current = false
     
-    // Stop and clear any ongoing audio immediately using cleanup function
     Object.keys(audioElements.current).forEach(aiId => {
       cleanupAudio(aiId)
       log(`🔇 Audio stopped and cleaned for ${aiId}`)
     })
     
-    // Reset all speaking and typing states immediately
     setSpeakingState('ai1', false)
     setSpeakingState('ai2', false)
     setTypingIndicator('ai1', false)
     setTypingIndicator('ai2', false)
     
-    // Stop the conversation in context
     stopConversation('Conversation stopped by user')
     
     log('✅ Conversation stopped and all audio cleared')
   }, [stopConversation, setSpeakingState, setTypingIndicator, cleanupAudio])
+
+  const handleResetSettings = () => {
+    try {
+      resetConversationSettings()
+      
+      // Reset state to defaults
+      setAI1Config(DEFAULT_AI1_CONFIG)
+      setAI2Config(DEFAULT_AI2_CONFIG)
+      setStartingMessage(DEFAULT_STARTING_MESSAGE)
+      setConversationDirection(DEFAULT_CONVERSATION_DIRECTION)
+      
+      toast.success('Settings Reset', {
+        description: 'All conversation settings have been reset to defaults.',
+        duration: 3000
+      })
+    } catch (error) {
+      toast.error('Reset Failed', {
+        description: 'Failed to reset settings to defaults.'
+      })
+    }
+  }
 
   const handleShareConversation = async () => {
     if (state.messages.length === 0) {
@@ -582,7 +636,7 @@ function MainApp() {
       const conversationData = {
         id: conversationId,
         settings: {
-          messageDirection: 'ai1-to-ai2' as ConversationDirection,
+          messageDirection: conversationDirection,
           models: {
             ai1: ai1Config.model,
             ai2: ai2Config.model,
@@ -683,7 +737,6 @@ function MainApp() {
           duration: 2000
         })
         
-        // TODO: Implement sequential audio playback with highlighting
         const audioUrl = `/conversations/${conversationId}/audio/${data.audioFiles[0]}`
         
         if (isClientSide && typeof window !== 'undefined') {
@@ -702,12 +755,15 @@ function MainApp() {
     }
   }
 
-  if (!isClientSide) {
+  // Show loading state until settings are loaded
+  if (!isClientSide || !hasLoadedSettings) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <span className="text-lg font-medium">Initializing AI Conversation System...</span>
+          <span className="text-lg font-medium">
+            {!isClientSide ? 'Initializing AI Conversation System...' : 'Loading your settings...'}
+          </span>
         </div>
       </div>
     )
@@ -742,6 +798,16 @@ function MainApp() {
             </Button>
             
             <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetSettings}
+              className="gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset
+            </Button>
+            
+            <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowDebug(!showDebug)}
@@ -769,7 +835,7 @@ function MainApp() {
         </div>
       )}
 
-      {/* Main Content Grid - With proper flex layout */}
+      {/* Main Content Grid */}
       <main className="container mx-auto p-6 flex-1 flex flex-col">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 flex-1 min-h-0">
           {/* Left Panel - Conversation Flow */}
@@ -782,6 +848,10 @@ function MainApp() {
               onStop={handleStopConversation}
               disabled={false}
               className="flex-shrink-0"
+              startingMessage={startingMessage}
+              onStartingMessageChange={setStartingMessage}
+              conversationDirection={conversationDirection}
+              onDirectionChange={setConversationDirection}
             />
             
             {/* Quick Stats */}
@@ -817,7 +887,7 @@ function MainApp() {
         </div>
       </main>
 
-      {/* Premium Footer - Fixed at bottom */}
+      {/* Premium Footer */}
       <footer className="border-t bg-gradient-to-r from-background to-muted/30 py-4 flex-shrink-0 mt-auto">
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-2">

@@ -1,4 +1,4 @@
-// components/ai-conversation/premium-settings-panel.tsx - Height Fix
+// components/ai-conversation/premium-settings-panel.tsx - Height Fix + LocalStorage
 "use client"
 
 import * as React from "react"
@@ -15,7 +15,11 @@ import {
   Shield,
   Zap,
   Database,
-  Sparkles
+  Sparkles,
+  Save,
+  Download,
+  Upload,
+  RotateCcw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -31,6 +35,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AIAgent, OpenRouterModel } from "@/types"
 import { ModelSelector } from "./advanced-model-selector"
 import { AIAgentCard } from "./ai-agent-card"
+import { 
+  exportConversationSettings, 
+  importConversationSettings, 
+  resetConversationSettings 
+} from "@/lib/utils"
+import { toast } from "sonner"
 import Cookies from 'js-cookie'
 
 interface PremiumSettingsPanelProps {
@@ -223,6 +233,9 @@ export function PremiumSettingsPanel({
     groq: false
   })
 
+  // File input ref for import
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
   // Load API keys and models on mount
   React.useEffect(() => {
     if (isOpen) {
@@ -233,6 +246,14 @@ export function PremiumSettingsPanel({
       }
     }
   }, [isOpen, isSharedView])
+
+  // Save configuration changes to localStorage automatically
+  React.useEffect(() => {
+    if (isOpen && !isSharedView) {
+      console.log('💾 AI configs changed in settings panel, auto-saving to localStorage')
+      // The parent component handles saving via useEffect, but we can add additional logging here
+    }
+  }, [ai1Config, ai2Config, isOpen, isSharedView])
 
   const loadAPIKeys = () => {
     console.log('🔑 Loading API keys from cookies...')
@@ -293,7 +314,6 @@ export function PremiumSettingsPanel({
   }
 
   const fetchModelsWithDelay = async () => {
-    // Small delay to ensure API key is saved
     setTimeout(fetchModels, 100)
   }
 
@@ -401,6 +421,85 @@ export function PremiumSettingsPanel({
     }
   }
 
+  const handleExportSettings = () => {
+    try {
+      const settingsJson = exportConversationSettings()
+      const blob = new Blob([settingsJson], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `ai-conversation-settings-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      toast.success('Settings Exported', {
+        description: 'Your conversation settings have been downloaded.',
+        duration: 3000
+      })
+    } catch (error) {
+      toast.error('Export Failed', {
+        description: 'Failed to export conversation settings.'
+      })
+    }
+  }
+
+  const handleImportSettings = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const jsonString = e.target?.result as string
+        const success = importConversationSettings(jsonString)
+        
+        if (success) {
+          toast.success('Settings Imported', {
+            description: 'Conversation settings have been imported successfully. Reload the page to see changes.',
+            duration: 5000
+          })
+        } else {
+          throw new Error('Import failed')
+        }
+      } catch (error) {
+        toast.error('Import Failed', {
+          description: 'Failed to import settings. Please check the file format.'
+        })
+      }
+    }
+    reader.readAsText(file)
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleResetAllSettings = () => {
+    try {
+      const success = resetConversationSettings()
+      
+      if (success) {
+        toast.success('Settings Reset', {
+          description: 'All conversation settings have been reset to defaults. Reload the page to see changes.',
+          duration: 5000
+        })
+      } else {
+        throw new Error('Reset failed')
+      }
+    } catch (error) {
+      toast.error('Reset Failed', {
+        description: 'Failed to reset conversation settings.'
+      })
+    }
+  }
+
   const hasValidOpenRouterKey = keyStatus.openrouter.saved && keyStatus.openrouter.valid
 
   console.log('🔧 Render state:', {
@@ -430,6 +529,39 @@ export function PremiumSettingsPanel({
                 </p>
               </div>
             </div>
+            
+            {/* Settings Management Buttons */}
+            {!isSharedView && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportSettings}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleImportSettings}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Import
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetAllSettings}
+                  className="gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset
+                </Button>
+              </div>
+            )}
           </div>
         </SheetHeader>
 
@@ -515,6 +647,27 @@ export function PremiumSettingsPanel({
                             </CardHeader>
                           </Card>
                         )}
+
+                        {/* Settings Management Info */}
+                        <Card>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                              <Save className="h-4 w-4" />
+                              Settings Management
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <p className="text-sm text-muted-foreground">
+                              Your conversation settings are automatically saved to your browser's localStorage. 
+                              You can export, import, or reset all settings using the buttons above.
+                            </p>
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              <Badge variant="outline">Auto-save enabled</Badge>
+                              <Badge variant="outline">Export/Import JSON</Badge>
+                              <Badge variant="outline">Reset to defaults</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
                       </>
                     )}
 
@@ -534,7 +687,7 @@ export function PremiumSettingsPanel({
                 <ScrollArea className="h-full pr-4">
                   <div className="space-y-6 pb-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="min-h-[600px]"> {/* Ensure enough height for dropdowns */}
+                      <div className="min-h-[600px]">
                         <AIAgentCard
                           agent={ai1Config}
                           models={models}
@@ -544,7 +697,7 @@ export function PremiumSettingsPanel({
                         />
                       </div>
                       
-                      <div className="min-h-[600px]"> {/* Ensure enough height for dropdowns */}
+                      <div className="min-h-[600px]">
                         <AIAgentCard
                           agent={ai2Config}
                           models={models}
@@ -563,12 +716,36 @@ export function PremiumSettingsPanel({
                         </AlertDescription>
                       </Alert>
                     )}
+
+                    {/* Agent Settings Persistence Info */}
+                    {!isSharedView && (
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Save className="h-3 w-3" />
+                              <span className="font-medium">Agent Settings Auto-Save</span>
+                            </div>
+                            <p>All changes to your AI agent configurations are automatically saved to your browser storage and will persist between sessions.</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
                   </div>
                 </ScrollArea>
               </TabsContent>
             </div>
           </Tabs>
         </div>
+
+        {/* Hidden file input for import */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+        />
       </SheetContent>
     </Sheet>
   )

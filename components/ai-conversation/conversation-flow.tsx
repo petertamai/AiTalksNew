@@ -13,7 +13,9 @@ import {
   Zap,
   AlertCircle,
   Clock,
-  Send
+  Send,
+  Save,
+  RotateCcw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,6 +25,8 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ConversationDirection, AIAgent } from "@/types"
+import { DEFAULT_STARTING_MESSAGE } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface ConversationFlowProps {
   ai1Config: AIAgent
@@ -32,6 +36,11 @@ interface ConversationFlowProps {
   onStop: () => void
   disabled?: boolean
   className?: string
+  // New props for localStorage integration
+  startingMessage: string
+  onStartingMessageChange: (message: string) => void
+  conversationDirection: ConversationDirection
+  onDirectionChange: (direction: ConversationDirection) => void
 }
 
 const FLOW_OPTIONS: {
@@ -73,7 +82,16 @@ const FLOW_OPTIONS: {
 ]
 
 const SAMPLE_MESSAGES = [
-  "Hello!",
+  "Hello! How are you today?",
+  "Let's discuss the future of artificial intelligence.",
+  "What are your thoughts on creativity and consciousness?",
+  "Can you help me understand quantum computing?",
+  "Tell me about your favorite philosophical concept.",
+  "What's the most interesting thing you've learned recently?",
+  "How do you approach problem-solving?",
+  "What role does emotion play in decision-making?",
+  "Describe your ideal conversation partner.",
+  "What questions fascinate you the most?"
 ]
 
 export function ConversationFlow({
@@ -83,35 +101,95 @@ export function ConversationFlow({
   onStart,
   onStop,
   disabled = false,
-  className
+  className,
+  startingMessage,
+  onStartingMessageChange,
+  conversationDirection,
+  onDirectionChange
 }: ConversationFlowProps) {
-  const [selectedFlow, setSelectedFlow] = React.useState<ConversationDirection>('ai1-to-ai2')
-  const [message, setMessage] = React.useState(SAMPLE_MESSAGES[0])
   const [isStarting, setIsStarting] = React.useState(false)
+  const [localMessage, setLocalMessage] = React.useState(startingMessage)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false)
 
-  const canStart = !!(ai1Config.model && ai2Config.model && message.trim() && !isActive && !disabled)
+  // Sync local message with prop when it changes
+  React.useEffect(() => {
+    setLocalMessage(startingMessage)
+    setHasUnsavedChanges(false)
+  }, [startingMessage])
+
+  // FIXED: Reset isStarting when conversation becomes inactive
+  React.useEffect(() => {
+    if (!isActive && isStarting) {
+      console.log('🔄 Conversation stopped externally, resetting isStarting state')
+      setIsStarting(false)
+    }
+  }, [isActive, isStarting])
+
+  // Check for unsaved changes
+  React.useEffect(() => {
+    setHasUnsavedChanges(localMessage !== startingMessage)
+  }, [localMessage, startingMessage])
+
+  const canStart = !!(ai1Config.model && ai2Config.model && localMessage.trim() && !isActive && !disabled)
   
   const validationErrors = React.useMemo(() => {
     const errors: string[] = []
     if (!ai1Config.model) errors.push(`${ai1Config.name} model not selected`)
     if (!ai2Config.model) errors.push(`${ai2Config.name} model not selected`)
-    if (!message.trim()) errors.push('Starting message is required')
+    if (!localMessage.trim()) errors.push('Starting message is required')
     return errors
-  }, [ai1Config, ai2Config, message])
+  }, [ai1Config, ai2Config, localMessage])
 
   const handleStart = async () => {
     if (!canStart) return
 
+    // Save message before starting if there are unsaved changes
+    if (hasUnsavedChanges) {
+      onStartingMessageChange(localMessage)
+      toast.success('Message Saved', {
+        description: 'Starting message has been saved to your settings.',
+        duration: 2000
+      })
+    }
+
     setIsStarting(true)
     try {
-      await onStart(selectedFlow, message.trim())
+      await onStart(conversationDirection, localMessage.trim())
     } finally {
       setIsStarting(false)
     }
   }
 
   const handleQuickMessage = (sampleMessage: string) => {
-    setMessage(sampleMessage)
+    setLocalMessage(sampleMessage)
+    toast.info('Quick Message Selected', {
+      description: 'Don\'t forget to save your changes!',
+      duration: 2000
+    })
+  }
+
+  const handleSaveMessage = () => {
+    onStartingMessageChange(localMessage)
+    toast.success('Message Saved', {
+      description: 'Starting message has been saved to your settings.',
+      duration: 2000
+    })
+  }
+
+  const handleResetMessage = () => {
+    setLocalMessage(DEFAULT_STARTING_MESSAGE)
+    toast.info('Message Reset', {
+      description: 'Starting message reset to default.',
+      duration: 2000
+    })
+  }
+
+  const handleDirectionChange = (newDirection: ConversationDirection) => {
+    onDirectionChange(newDirection)
+    toast.success('Direction Updated', {
+      description: 'Conversation direction has been saved.',
+      duration: 2000
+    })
   }
 
   return (
@@ -134,12 +212,19 @@ export function ConversationFlow({
             </div>
           </div>
           
-          {isActive && (
-            <Badge variant="default" className="animate-pulse">
-              <Clock className="h-3 w-3 mr-1" />
-              Active
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {isActive && (
+              <Badge variant="default" className="animate-pulse">
+                <Clock className="h-3 w-3 mr-1" />
+                Active
+              </Badge>
+            )}
+            {hasUnsavedChanges && (
+              <Badge variant="outline" className="text-yellow-600 border-yellow-600/50 bg-yellow-50">
+                Unsaved Changes
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
 
@@ -171,13 +256,13 @@ export function ConversationFlow({
             {FLOW_OPTIONS.map((option) => (
               <button
                 key={option.id}
-                onClick={() => setSelectedFlow(option.id)}
+                onClick={() => handleDirectionChange(option.id)}
                 disabled={disabled || isActive}
                 className={cn(
                   "relative p-4 rounded-lg border-2 transition-all duration-200",
                   "hover:shadow-md hover:scale-[1.02]",
                   "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                  selectedFlow === option.id
+                  conversationDirection === option.id
                     ? "border-primary bg-gradient-to-br " + option.gradient
                     : "border-border hover:border-primary/50 bg-card",
                   (disabled || isActive) && "opacity-50 cursor-not-allowed"
@@ -186,7 +271,7 @@ export function ConversationFlow({
                 <div className="flex flex-col items-center gap-2 text-center">
                   <div className={cn(
                     "w-8 h-8 rounded-md flex items-center justify-center",
-                    selectedFlow === option.id ? "bg-primary/20" : "bg-muted"
+                    conversationDirection === option.id ? "bg-primary/20" : "bg-muted"
                   )}>
                     {option.icon}
                   </div>
@@ -209,14 +294,39 @@ export function ConversationFlow({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Starting Message</Label>
-            <Badge variant="outline" className="text-xs">
-              {message.length} characters
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {localMessage.length} characters
+              </Badge>
+              {hasUnsavedChanges && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveMessage}
+                    disabled={disabled || isActive}
+                    className="h-6 text-xs"
+                  >
+                    <Save className="h-3 w-3 mr-1" />
+                    Save
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetMessage}
+                    disabled={disabled || isActive}
+                    className="h-6 text-xs"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
           
           <Textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            value={localMessage}
+            onChange={(e) => setLocalMessage(e.target.value)}
             placeholder="Enter the message that will start the AI conversation..."
             className="min-h-[100px] resize-none"
             disabled={disabled || isActive}
@@ -226,7 +336,7 @@ export function ConversationFlow({
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Quick start options:</Label>
             <div className="flex flex-wrap gap-2">
-              {SAMPLE_MESSAGES.slice(0, 3).map((sample, index) => (
+              {SAMPLE_MESSAGES.slice(0, 6).map((sample, index) => (
                 <button
                   key={index}
                   onClick={() => handleQuickMessage(sample)}
@@ -235,10 +345,10 @@ export function ConversationFlow({
                     "text-xs px-3 py-1 rounded-full border",
                     "hover:bg-accent transition-colors",
                     "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                    message === sample ? "bg-primary/10 border-primary" : "border-border"
+                    localMessage === sample ? "bg-primary/10 border-primary" : "border-border"
                   )}
                 >
-                  {sample.slice(0, 35)}...
+                  {sample.length > 35 ? sample.slice(0, 35) + '...' : sample}
                 </button>
               ))}
             </div>
@@ -313,8 +423,27 @@ export function ConversationFlow({
                 )}
               </div>
             </div>
+            
+            {/* Unsaved Changes Warning */}
+            {hasUnsavedChanges && (
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-2 text-yellow-600">
+                  <AlertCircle className="h-3 w-3" />
+                  <span className="text-xs">You have unsaved changes to your starting message.</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Settings Persistence Info */}
+        <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Save className="h-3 w-3" />
+            <span className="font-medium">Auto-Save Enabled</span>
+          </div>
+          <p>Your conversation settings, including starting message and flow direction, are automatically saved to your browser and will be restored when you return.</p>
+        </div>
       </CardContent>
     </Card>
   )

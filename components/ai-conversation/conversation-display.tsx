@@ -129,7 +129,7 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
       onMouseLeave={() => setIsHovered(false)}
       data-message-index={index}
     >
-      {/* Speaking Indicator with Animation */}
+      {/* Speaking Indicator with Animation - ONLY when actually speaking */}
       {isSpeaking && (
         <div className="absolute -top-3 left-4 flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs shadow-lg z-10 animate-pulse">
           <div className="flex gap-1">
@@ -172,13 +172,7 @@ function MessageItem({ message, index, isActive, isSpeaking, isTyping }: Message
                   {formatTimestamp(message.timestamp)}
                 </span>
               )}
-              {/* Audio Status Indicator */}
-              {isSpeaking && (
-                <Badge variant="default" className="text-xs bg-primary/20 text-primary border-primary/30">
-                  <Volume2 className="h-3 w-3 mr-1" />
-                  Playing
-                </Badge>
-              )}
+              {/* REMOVED: Redundant "Playing" badge since we already have speaking animation */}
             </div>
             
             {/* Actions */}
@@ -272,6 +266,24 @@ export function ConversationDisplay({
   const hasAnyActivity = state.speakingState.ai1 || state.speakingState.ai2 || 
                         state.typingIndicator.ai1 || state.typingIndicator.ai2
 
+  // FIXED: Determine which message is currently speaking
+  // Only the LAST message from the currently speaking AI should show as speaking
+  const getCurrentlySpeakingMessageIndex = () => {
+    if (!state.speakingState.ai1 && !state.speakingState.ai2) return -1
+    
+    const speakingAgent = state.speakingState.ai1 ? 'ai1' : 'ai2'
+    
+    // Find the LAST message from the currently speaking agent
+    for (let i = state.messages.length - 1; i >= 0; i--) {
+      if (state.messages[i].agent === speakingAgent) {
+        return i
+      }
+    }
+    return -1
+  }
+
+  const currentlySpeakingMessageIndex = getCurrentlySpeakingMessageIndex()
+
   return (
     <Card className={cn("flex flex-col max-h-[80vh]", className)}>
       <CardHeader className="flex-shrink-0 pb-3">
@@ -357,10 +369,8 @@ export function ConversationDisplay({
                     key={message.id}
                     message={message}
                     index={index}
-                    isSpeaking={
-                      (message.agent === 'ai1' && state.speakingState.ai1) ||
-                      (message.agent === 'ai2' && state.speakingState.ai2)
-                    }
+                    // FIXED: Only show speaking for the LAST message from currently speaking agent
+                    isSpeaking={index === currentlySpeakingMessageIndex}
                   />
                 ))}
 
