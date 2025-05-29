@@ -64,6 +64,7 @@
     "@types/js-cookie": "^3.0.6",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "clubber": "^1.7.1",
     "cmdk": "^0.2.0",
     "framer-motion": "^10.16.16",
     "js-cookie": "^3.0.5",

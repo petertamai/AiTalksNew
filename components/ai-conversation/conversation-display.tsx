@@ -270,225 +270,205 @@ function MarkdownRenderer({ content }: { content: string }) {
 }
 
 function MessageItem({ 
-  message, 
-  index, 
-  isActive, 
-  isSpeaking, 
-  isTyping, 
-  ai1Config,
-  ai2Config,
-  isPlaybackHighlighted = false 
-}: MessageItemProps) {
-  const [isHovered, setIsHovered] = React.useState(false)
-  const [copied, setCopied] = React.useState(false)
-
-  const getMessageStyles = () => {
-    switch (message.role) {
-      case 'assistant':
-        if (message.agent === 'ai1') {
-          return {
-            container: "bg-gradient-to-r from-blue-50 to-blue-100/50 border-blue-200/50 ml-0 mr-8",
-            avatar: "bg-blue-500/10 border-blue-500/20",
-            icon: "text-blue-600",
-            name: "text-blue-700",
-            darkContainer: "dark:from-blue-950/30 dark:to-blue-900/20 dark:border-blue-800/30"
+    message, 
+    index, 
+    isActive, 
+    isSpeaking, 
+    isTyping, 
+    ai1Config,
+    ai2Config,
+    isPlaybackHighlighted = false 
+  }: MessageItemProps) {
+    const [isHovered, setIsHovered] = React.useState(false)
+    const [copied, setCopied] = React.useState(false)
+  
+    const getMessageStyles = () => {
+      switch (message.role) {
+        case 'assistant':
+          if (message.agent === 'ai1') {
+            return {
+              container: "bg-gradient-to-r from-blue-50 to-blue-100/50 border-blue-200/50 ml-0 mr-8",
+              avatar: "bg-blue-500/10 border-blue-500/20",
+              icon: "text-blue-600",
+              name: "text-blue-700",
+              darkContainer: "dark:from-blue-950/30 dark:to-blue-900/20 dark:border-blue-800/30"
+            }
+          } else {
+            return {
+              container: "bg-gradient-to-l from-purple-50 to-purple-100/50 border-purple-200/50 ml-8 mr-0",
+              avatar: "bg-purple-500/10 border-purple-500/20",
+              icon: "text-purple-600", 
+              name: "text-purple-700",
+              darkContainer: "dark:from-purple-950/30 dark:to-purple-900/20 dark:border-purple-800/30"
+            }
           }
-        } else {
+        case 'human':
           return {
-            container: "bg-gradient-to-l from-purple-50 to-purple-100/50 border-purple-200/50 ml-8 mr-0",
-            avatar: "bg-purple-500/10 border-purple-500/20",
-            icon: "text-purple-600", 
-            name: "text-purple-700",
-            darkContainer: "dark:from-purple-950/30 dark:to-purple-900/20 dark:border-purple-800/30"
+            container: "bg-gradient-to-r from-green-50 to-green-100/50 border-green-200/50 ml-0 mr-8",
+            avatar: "bg-green-500/10 border-green-500/20", 
+            icon: "text-green-600",
+            name: "text-green-700",
+            darkContainer: "dark:from-green-950/30 dark:to-green-900/20 dark:border-green-800/30"
           }
-        }
-      case 'human':
-        return {
-          container: "bg-gradient-to-r from-green-50 to-green-100/50 border-green-200/50 ml-0 mr-8",
-          avatar: "bg-green-500/10 border-green-500/20", 
-          icon: "text-green-600",
-          name: "text-green-700",
-          darkContainer: "dark:from-green-950/30 dark:to-green-900/20 dark:border-green-800/30"
-        }
-      case 'system':
-        return {
-          container: "bg-gradient-to-r from-gray-50 to-gray-100/50 border-gray-200/50 mx-8",
-          avatar: "bg-gray-500/10 border-gray-500/20",
-          icon: "text-gray-600",
-          name: "text-gray-700", 
-          darkContainer: "dark:from-gray-950/30 dark:to-gray-900/20 dark:border-gray-800/30"
-        }
-      default:
-        return {
-          container: "bg-muted/50 border-border ml-0 mr-8",
-          avatar: "bg-muted border-border",
-          icon: "text-muted-foreground",
-          name: "text-foreground",
-          darkContainer: ""
-        }
+        case 'system':
+          return {
+            container: "bg-gradient-to-r from-gray-50 to-gray-100/50 border-gray-200/50 mx-8",
+            avatar: "bg-gray-500/10 border-gray-500/20",
+            icon: "text-gray-600",
+            name: "text-gray-700", 
+            darkContainer: "dark:from-gray-950/30 dark:to-gray-900/20 dark:border-gray-800/30"
+          }
+        default:
+          return {
+            container: "bg-muted/50 border-border ml-0 mr-8",
+            avatar: "bg-muted border-border",
+            icon: "text-muted-foreground",
+            name: "text-foreground",
+            darkContainer: ""
+          }
+      }
     }
-  }
-
-  const styles = getMessageStyles()
-  const isAI = message.role === 'assistant'
-  const isSystem = message.role === 'system'
-
-  // UPDATED: Get real agent names instead of AI-1/AI-2
-  const getAgentName = () => {
-    if (message.role === 'human') return 'Human'
-    if (message.role === 'system') return 'System'
-    if (message.agent === 'ai1' && ai1Config?.name) return ai1Config.name
-    if (message.agent === 'ai2' && ai2Config?.name) return ai2Config.name
-    // Fallback to default names
-    if (message.agent === 'ai1') return 'AI Assistant'
-    if (message.agent === 'ai2') return 'AI Assistant'
-    return 'Assistant'
-  }
-
-  // NEW: Get agent ID for badge display
-  const getAgentId = () => {
-    if (message.agent === 'ai1') return 'AI-1'
-    if (message.agent === 'ai2') return 'AI-2'
-    return null
-  }
-
-  const getAgentIcon = () => {
-    if (message.role === 'human') return <User className="h-4 w-4" />
-    if (message.role === 'system') return <Settings className="h-4 w-4" />
-    return <Bot className="h-4 w-4" />
-  }
-
-  const copyMessage = async () => {
-    try {
-      await navigator.clipboard.writeText(message.content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy message: ', err)
+  
+    const styles = getMessageStyles()
+    const isAI = message.role === 'assistant'
+    const isSystem = message.role === 'system'
+  
+    // Get agent names and IDs
+    const getAgentName = () => {
+      if (message.role === 'human') return 'Human'
+      if (message.role === 'system') return 'System'
+      if (message.agent === 'ai1' && ai1Config?.name) return ai1Config.name
+      if (message.agent === 'ai2' && ai2Config?.name) return ai2Config.name
+      if (message.agent === 'ai1') return 'AI Assistant'
+      if (message.agent === 'ai2') return 'AI Assistant'
+      return 'Assistant'
     }
-  }
-
-  return (
-    <div
-      className={cn(
-        "group relative p-4 rounded-lg border transition-all duration-300",
-        "hover:shadow-sm",
-        styles.container,
-        styles.darkContainer,
-        // Live speaking (during conversation)
-        isSpeaking && "ring-2 ring-primary/50 shadow-lg transform scale-[1.02]",
-        // Playback highlighting (during audio replay)
-        isPlaybackHighlighted && "ring-2 ring-green-500/50 shadow-lg bg-green-50/20 transform scale-[1.01]",
-        isActive && "ring-2 ring-primary"
-      )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      data-message-index={index}
-    >
-      {/* Live Speaking Indicator - RIGHT ALIGNED */}
-      {isSpeaking && (
-        <div className="absolute -top-2 right-4 flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs shadow-lg z-10">
-          <Volume2 className="h-3 w-3" />
-          <span className="font-medium">Speaking</span>
-        </div>
-      )}
-
-      {/* Playback Highlighting Indicator - RIGHT ALIGNED */}
-      {isPlaybackHighlighted && !isSpeaking && (
-        <div className="absolute -top-2 right-4 flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-full text-xs shadow-lg z-10">
-          <PlayCircle className="h-3 w-3" />
-          <span className="font-medium">Playing Audio</span>
-        </div>
-      )}
-
-      <div className="flex items-start gap-3">
-        {/* Avatar with Animation */}
-        <div className={cn(
-          "w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0 transition-all duration-200",
-          styles.avatar,
-          isSpeaking && "ring-2 ring-primary/50 ring-offset-2 animate-pulse",
-          isPlaybackHighlighted && !isSpeaking && "ring-2 ring-green-500/50 ring-offset-2 animate-pulse"
-        )}>
-          <div className={styles.icon}>
-            {getAgentIcon()}
+  
+    const getAgentId = () => {
+      if (message.agent === 'ai1') return 'AI-1'
+      if (message.agent === 'ai2') return 'AI-2'
+      return null
+    }
+  
+    const getAgentIcon = () => {
+      if (message.role === 'human') return <User className="h-4 w-4" />
+      if (message.role === 'system') return <Settings className="h-4 w-4" />
+      return <Bot className="h-4 w-4" />
+    }
+  
+    const copyMessage = async () => {
+      try {
+        await navigator.clipboard.writeText(message.content)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (err) {
+        console.error('Failed to copy message: ', err)
+      }
+    }
+  
+    return (
+      <div
+        className={cn(
+          "group relative p-4 rounded-lg border transition-all duration-300",
+          "hover:shadow-sm",
+          styles.container,
+          styles.darkContainer,
+          // Playback highlighting - subtle zoom effect
+          isPlaybackHighlighted && "border-green-500/50",
+          isActive && "ring-2 ring-primary"
+        )}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        data-message-index={index}
+        style={{
+          // Playback zoom effect
+          ...(isPlaybackHighlighted && {
+            transform: 'scale(1.02)',
+            zIndex: 10
+          })
+        }}
+      >
+        <div className="flex items-start gap-3">
+          {/* Avatar - removed speaking glow */}
+          <div className={cn(
+            "w-8 h-8 rounded-full border flex items-center justify-center flex-shrink-0 transition-all duration-200",
+            styles.avatar
+          )}>
+            <div className={styles.icon}>
+              {getAgentIcon()}
+            </div>
           </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 space-y-1">
-          {/* Header with REAL agent names */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* MAIN NAME: Real agent name */}
-              <span className={cn("text-sm font-medium", styles.name)}>
-                {getAgentName()}
-              </span>
-              
-              {/* SECONDARY BADGES: Agent ID and Model */}
-              <div className="flex items-center gap-1">
-                {/* Agent ID badge (AI-1/AI-2) as grey badge on the right */}
-                {getAgentId() && (
-                  <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600 border-gray-200">
-                    {getAgentId()}
-                  </Badge>
-                )}
+  
+          {/* Content */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Agent Name with speaking indicator */}
+                <span className={cn(
+                  "text-sm font-medium flex items-center gap-2", 
+                  styles.name,
+                  isSpeaking && "text-primary font-semibold"
+                )}>
+                  {getAgentName()}
+                  {isSpeaking && (
+                    <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                      <Volume2 className="h-3 w-3 animate-pulse" />
+                      Speaking
+                    </span>
+                  )}
+                </span>
                 
-                {/* Model badge */}
-                {message.model && (
-                  <Badge variant="outline" className="text-xs">
-                    {message.model.split('/').pop()}
-                  </Badge>
+                {/* Badges */}
+                <div className="flex items-center gap-1">
+                  {getAgentId() && (
+                    <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600 border-gray-200">
+                      {getAgentId()}
+                    </Badge>
+                  )}
+                  
+                  {message.model && (
+                    <Badge variant="outline" className="text-xs">
+                      {message.model.split('/').pop()}
+                    </Badge>
+                  )}
+                </div>
+                
+                {message.timestamp && (
+                  <span className="text-xs text-muted-foreground">
+                    {formatTimestamp(message.timestamp)}
+                  </span>
                 )}
               </div>
               
-              {/* Timestamp */}
-              {message.timestamp && (
-                <span className="text-xs text-muted-foreground">
-                  {formatTimestamp(message.timestamp)}
-                </span>
-              )}
-              
-              {/* Show playback status */}
-              {isPlaybackHighlighted && (
-                <Badge variant="default" className="text-xs bg-green-500/20 text-green-700 border-green-500/30">
-                  <Volume2 className="h-3 w-3 mr-1" />
-                  Audio Playing
-                </Badge>
+              {/* Actions */}
+              {(isHovered || isSpeaking || isPlaybackHighlighted) && (
+                <div className="flex items-center gap-1 opacity-60 hover:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={copyMessage}
+                    className="h-6 w-6 p-0"
+                  >
+                    {copied ? (
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
-            
-            {/* Actions */}
-            {(isHovered || isSpeaking || isPlaybackHighlighted) && (
-              <div className="flex items-center gap-1 opacity-60 hover:opacity-100">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={copyMessage}
-                  className="h-6 w-6 p-0"
-                >
-                  {copied ? (
-                    <CheckCircle className="h-3 w-3 text-green-500" />
-                  ) : (
-                    <Copy className="h-3 w-3" />
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Enhanced Message Content with Markdown Rendering */}
-          <div className={cn(
-            "transition-all duration-300",
-            isSpeaking && "text-primary",
-            isPlaybackHighlighted && !isSpeaking && "text-green-700"
-          )}>
-            <MarkdownRenderer content={message.content} />
+  
+            {/* Enhanced Message Content */}
+            <div className="transition-all duration-300">
+              <MarkdownRenderer content={message.content} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  )
-}
+    )
+  }
 
 function TypingIndicator({ agentName }: { agentName: string }) {
   return (
@@ -576,6 +556,29 @@ export function ConversationDisplay({
   const hasAnyActivity = state.speakingState.ai1 || state.speakingState.ai2 || 
                         state.typingIndicator.ai1 || state.typingIndicator.ai2 ||
                         (playbackHighlightedMessage && playbackHighlightedMessage.messageIndex >= 0)
+    const getStatusIcon = () => {
+        if (state.speakingState.ai1 || state.speakingState.ai2) {
+            return (
+            <div className="voice-bars">
+                <div className="voice-bar"></div>
+                <div className="voice-bar"></div>
+                <div className="voice-bar"></div>
+                <div className="voice-bar"></div>
+                <div className="voice-bar"></div>
+            </div>
+            )
+        }
+        if (state.typingIndicator.ai1 || state.typingIndicator.ai2) {
+            return <Clock className="h-3 w-3" />
+        }
+        if (playbackHighlightedMessage && playbackHighlightedMessage.messageIndex >= 0) {
+            return <Volume2 className="h-3 w-3" />
+        }
+        return null
+        }
+
+  
+
 
   // Determine which message is currently speaking (live conversation)
   const getCurrentlySpeakingMessageIndex = () => {
@@ -634,16 +637,13 @@ export function ConversationDisplay({
             
             {/* Status Badge */}
             <Badge 
-              variant={getStatusVariant()} 
-              className={cn(
-                "transition-all duration-200",
-                hasAnyActivity && "animate-pulse"
-              )}
+                variant={getStatusVariant()} 
+                className="transition-all duration-300"
             >
-              <div className="flex items-center gap-1">
-                {hasAnyActivity && <Clock className="h-3 w-3" />}
+                <div className="flex items-center gap-2">
+                {getStatusIcon()}
                 {getStatusText()}
-              </div>
+                </div>
             </Badge>
           </div>
         </div>

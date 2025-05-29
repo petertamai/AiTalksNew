@@ -1195,9 +1195,9 @@ function MainApp() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  AI Conversation System
+                  AI Talks
                 </h1>
-                <p className="text-sm text-muted-foreground">Clean AI Collaboration Platform</p>
+                <p className="text-sm text-muted-foreground">Simulate Any Conversation Possible</p>
               </div>
             </div>
           </Link>
