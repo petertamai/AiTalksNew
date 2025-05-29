@@ -384,7 +384,7 @@ Configure your API keys in the settings panel to begin creating AI conversations
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
               <Star className="h-4 w-4" />
-              Premium AI Collaboration Platform
+              AI 2 AI Conversaions
             </div>
           </div>
 

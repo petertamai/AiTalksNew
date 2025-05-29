@@ -1,4 +1,4 @@
-// components/ai-conversation/conversation-flow.tsx - SIMPLE FIX: Just fix starter attribution
+// components/ai-conversation/conversation-flow.tsx - COMPLETE WITH HEIGHT FIX
 "use client"
 
 import * as React from "react"
@@ -204,11 +204,11 @@ export function ConversationFlow({
 
   return (
     <Card className={cn(
-      "relative overflow-hidden",
+      "relative overflow-hidden flex flex-col h-full",
       "bg-gradient-to-br from-background to-muted/30",
       className
     )}>
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
@@ -238,7 +238,7 @@ export function ConversationFlow({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 flex-1 overflow-y-auto pb-4">
         {/* Validation Errors */}
         {validationErrors.length > 0 && (
           <Alert>

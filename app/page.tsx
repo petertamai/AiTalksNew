@@ -3,7 +3,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Settings, Bug, Sparkles, Zap, BrainCircuit, RotateCcw, Play, Pause, Square, SkipForward, SkipBack } from 'lucide-react'
+import { Settings, Bug, Sparkles, Zap, BrainCircuit, RotateCcw, Play, Pause, Square, SkipForward, SkipBack, Github } from 'lucide-react'
 import { ConversationProvider, useConversation } from '@/contexts/ConversationContext'
 import { ConversationDisplay } from '@/components/ai-conversation/conversation-display'
 import { ConversationFlow } from '@/components/ai-conversation/conversation-flow'
@@ -1244,6 +1244,23 @@ function MainApp() {
                 About
               </Link>
             </Button>
+
+            {/* GitHub Badge */}
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="gap-2"
+            >
+              <a 
+                href="https://github.com/petertamai/AiTalksNew" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <Github className="h-4 w-4" />
+                GitHub
+              </a>
+            </Button>
             
             <Button
               variant="outline"
@@ -1293,11 +1310,11 @@ function MainApp() {
         </div>
       )}
 
-      {/* Main Content Grid */}
-      <main className="container mx-auto p-6 flex-1 flex flex-col">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 flex-1 min-h-0">
+    {/* Main Content Grid - FIXED FOR EQUAL HEIGHTS */}
+    <main className="container mx-auto p-6 flex-1 flex flex-col min-h-0">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 flex-1 min-h-0 h-full">
           {/* Left Panel - Conversation Flow */}
-          <div className="flex flex-col space-y-6">
+          <div className="flex flex-col space-y-6 h-full">
             <ConversationFlow 
               ai1Config={ai1Config}
               ai2Config={ai2Config}
@@ -1305,7 +1322,7 @@ function MainApp() {
               onStart={handleStartConversation}
               onStop={handleStopConversation}
               disabled={false}
-              className="flex-shrink-0"
+              className="flex-1 h-full"
               startingMessage={startingMessage}
               onStartingMessageChange={setStartingMessage}
               conversationDirection={conversationDirection}
@@ -1314,14 +1331,14 @@ function MainApp() {
           </div>
 
           {/* Right Panel - Conversation Display */}
-          <div className="flex flex-col min-h-0">
+          <div className="flex flex-col min-h-0 h-full">
             <ConversationDisplay
               state={state}
               onShare={handleShareConversation}
               onPlayAudio={handlePlayAudio}
               hasAudio={hasAudio}
               isSharedView={false}
-              className="flex-1"
+              className="flex-1 h-full"
               ai1Config={ai1Config}
               ai2Config={ai2Config}
               playbackHighlightedMessage={playbackHighlightedMessage}
